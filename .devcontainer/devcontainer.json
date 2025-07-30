@@ -13,6 +13,7 @@
     "dbaeumer.vscode-eslint",
     "google.geminicodeassist",
     "ms-toolsai.jupyter",
-    "ms-python.debugpy"
+    "ms-python.debugpy",
+    "cweijan.vscode-office"
   ]
 }
