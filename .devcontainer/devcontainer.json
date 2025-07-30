@@ -1,0 +1,18 @@
+{
+  "name": "Development Container",
+  "image": "stewieitv1:latest",
+  "workspaceFolder": "/app",
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/app,type=bind"
+  ],
+  "settings": {
+    "terminal.integrated.defaultProfile.linux": "bash"
+  },
+  "extensions": [
+    "ms-python.python",
+    "dbaeumer.vscode-eslint",
+    "google.geminicodeassist",
+    "ms-toolsai.jupyter",
+    "ms-python.debugpy"
+  ]
+}
