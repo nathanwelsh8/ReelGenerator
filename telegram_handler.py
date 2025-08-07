@@ -121,8 +121,8 @@ class TelegramBot:
             f.write(f"[{timestamp}] {message}\n")
 
 
-# if __name__ == "__main__":
-#     bot = TelegramBot()
-#     data = bot.poll_for_content()
-#     if data:
-#         print("Received data:", data)
+if __name__ == "__main__":
+    bot = TelegramBot()
+    data = bot.poll_for_content()
+    if data:
+        print("Received data:", data)

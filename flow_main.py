@@ -4,7 +4,7 @@ from db_handler import DBOperation
 from telegram_handler import TelegramBot
 from scrap_audio import VoiceGenerator
 from editor_agent import DynamicVideoEditor
-from utils import Utils
+from proxy_manager import Utils
 import  time 
 #changes in editor  , in flow, in telegram file 
 

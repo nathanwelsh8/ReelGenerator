@@ -68,10 +68,10 @@ class ImageDownloader:
 
 
 # # Example usage
-# if __name__ == "__main__":
-#     image_downloader = ImageDownloader(max_images=10)
-#     downloaded_images = image_downloader.search_images("indian meme templates no words only images for editing")
+if __name__ == "__main__":
+    image_downloader = ImageDownloader(max_images=10)
+    downloaded_images = image_downloader.search_images("uk meme templates no words only images for editing")
 
-#     print("Downloaded images:")
-#     for img_path in downloaded_images:
-#         print(img_path)
+    print("Downloaded images:")
+    for img_path in downloaded_images:
+        print(img_path)

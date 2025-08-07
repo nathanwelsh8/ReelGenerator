@@ -329,14 +329,14 @@ convo= [
 
 
 
-# if __name__ == "__main__":
-#     #db = DBOperation()
-#     #db.truncate_dialouge_stage()
-#    # db.add_dialogues(convo)
-#     #print(db.get_stage_and_unprocessed_dialogue())
-#     #db.show_all_dialogues()
-#     ready_assests=db.get_raedy_assests()
-#     print(ready_assests)
-#     # for dic in  ready_assests:
-#     #     print(dic)
-#     #db.truncate_dialouge_stage()
+if __name__ == "__main__":
+    db = DBOperation()
+    db.truncate_dialouge_stage()
+    db.add_dialogues(convo)
+    print(db.get_stage_and_unprocessed_dialogue())
+    db.show_all_dialogues()
+    ready_assests=db.get_raedy_assests()
+    print(ready_assests)
+    for dic in  ready_assests:
+        print(dic)
+    db.truncate_dialouge_stage()

@@ -1,5 +1,5 @@
 {
-  "name": "Development Container",
+  "name": "StewieReelsGenerator",
   "image": "stewieitv1:latest",
   "workspaceFolder": "/app",
   "mounts": [

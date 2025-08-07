@@ -1,0 +1,344 @@
+2025-08-07 19:17:28,994 - INFO - Rotating proxy session. Count:Rotate=0:3
+2025-08-07 19:17:32,894 - INFO - Proxy candidate: 'ReelsSA1-zone-resi-region-gb-session-1754594248.9961565:FpSgZ3KnjabZKKV@pr.pyproxy.com:16666'
+2025-08-07 19:17:40,994 - INFO - Using authenticated proxy via extension.
+2025-08-07 19:17:41,814 - INFO - WebDriver initialized successfully.
+2025-08-07 19:17:41,818 - INFO - Generating for: 'Time complexity tells you how long your code will take as input grows.' with ID: 0
+2025-08-07 19:17:42,195 - INFO - Cookies cleared.
+2025-08-07 19:17:48,799 - INFO - Video URL: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_clendm0q.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=RH1pJUOa%2BeFplJ1fwgbNsePim4YCMBjmOyUzoitVwT81Ir44pnnPIG569jdtUNw20Jf580B%2FejrwolTLEbifd48YJoMh3kP4xjiitNWrrmYks1kkcJw3SgUdfBr9HQIK0PrL5Qnt%2B%2FS5KSSZzi216ib4p0DX3PHQJHUA6ju5w8Hy%2BTJaLSoQ5rSdiowzomu3a6MGmyeJpA4Q%2Fm%2FfEMk6jywkZhnIEWM51LDTN1ytJ221iOcbw%2BfyF2WifnUkwmu%2FBiioGDaOmOpkukTV3tpqzSBYNZeQDYIf%2FhpPHoNY6jo0Bhe3a4OWgS7em2ogznmLi8X8k3Q3xQeJewPvTJEgTg%3D%3D
+2025-08-07 19:17:48,800 - INFO - Downloading from: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_clendm0q.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=RH1pJUOa%2BeFplJ1fwgbNsePim4YCMBjmOyUzoitVwT81Ir44pnnPIG569jdtUNw20Jf580B%2FejrwolTLEbifd48YJoMh3kP4xjiitNWrrmYks1kkcJw3SgUdfBr9HQIK0PrL5Qnt%2B%2FS5KSSZzi216ib4p0DX3PHQJHUA6ju5w8Hy%2BTJaLSoQ5rSdiowzomu3a6MGmyeJpA4Q%2Fm%2FfEMk6jywkZhnIEWM51LDTN1ytJ221iOcbw%2BfyF2WifnUkwmu%2FBiioGDaOmOpkukTV3tpqzSBYNZeQDYIf%2FhpPHoNY6jo0Bhe3a4OWgS7em2ogznmLi8X8k3Q3xQeJewPvTJEgTg%3D%3D
+2025-08-07 19:17:49,283 - INFO - Video downloaded successfully!
+2025-08-07 19:17:49,284 - INFO - Converting peter_voice_0.mp4 to audio_assests/peter_audio_0.mp3
+2025-08-07 19:17:49,698 - INFO - Deleted video file: peter_voice_0.mp4
+2025-08-07 19:17:49,698 - INFO - Audio saved as audio_assests/peter_audio_0.mp3
+2025-08-07 19:17:51,387 - INFO - Processed audio saved to audio_assests/peter_audio_0.mp3
+2025-08-07 19:17:51,387 - ERROR - Error processing conversation ID 0: 'VoiceGenerator' object has no attribute 'call_count'
+Traceback (most recent call last):
+  File "/app/scrap_audio.py", line 183, in process_conversation
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+AttributeError: 'VoiceGenerator' object has no attribute 'call_count'
+2025-08-07 19:17:51,395 - INFO - Generating for: 'So it's not about actual seconds?' with ID: 1
+2025-08-07 19:17:51,510 - INFO - Cookies cleared.
+2025-08-07 19:17:56,224 - INFO - Video URL: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_c5hith06.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=E6T2oeSqkOqW6GVxiSQCFPZx73ZX4cu1Y%2FFg8iEn35LUkprqa8fSdbqHlCy2jtGGNDSoHRu%2Fy5TgSzfi%2B4HUWWDvrlzpnFsJzj5enxszwo5VxVD8K1%2FhQ1BffgO5RSgHcd5ciUa5tKqS1iWjMTcv3Lz7Ug35PL0zqbfMGiJF40CV5ai3k38WFNyxjtSHhs4w1AFjggLnxVkUA2Mcgoenq76Px9JGdtlUD633VXABhWzGu%2BQpf7OWEADxLZph7dSXJm80C5k7EtXIW0p5bBXnOqzk1WVWEOFvzWkWJ2jVI%2BEUdekMfvteCym%2Ftq6PeN2oK9JtKDj5Q36cWQnhFP6jpQ%3D%3D
+2025-08-07 19:17:56,224 - INFO - Downloading from: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_c5hith06.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=E6T2oeSqkOqW6GVxiSQCFPZx73ZX4cu1Y%2FFg8iEn35LUkprqa8fSdbqHlCy2jtGGNDSoHRu%2Fy5TgSzfi%2B4HUWWDvrlzpnFsJzj5enxszwo5VxVD8K1%2FhQ1BffgO5RSgHcd5ciUa5tKqS1iWjMTcv3Lz7Ug35PL0zqbfMGiJF40CV5ai3k38WFNyxjtSHhs4w1AFjggLnxVkUA2Mcgoenq76Px9JGdtlUD633VXABhWzGu%2BQpf7OWEADxLZph7dSXJm80C5k7EtXIW0p5bBXnOqzk1WVWEOFvzWkWJ2jVI%2BEUdekMfvteCym%2Ftq6PeN2oK9JtKDj5Q36cWQnhFP6jpQ%3D%3D
+2025-08-07 19:17:56,644 - INFO - Video downloaded successfully!
+2025-08-07 19:17:56,644 - INFO - Converting stewie_voice_1.mp4 to audio_assests/stewie_audio_1.mp3
+2025-08-07 19:17:56,957 - INFO - Deleted video file: stewie_voice_1.mp4
+2025-08-07 19:17:56,958 - INFO - Audio saved as audio_assests/stewie_audio_1.mp3
+2025-08-07 19:17:58,205 - INFO - Processed audio saved to audio_assests/stewie_audio_1.mp3
+2025-08-07 19:17:58,206 - ERROR - Error processing conversation ID 1: 'VoiceGenerator' object has no attribute 'call_count'
+Traceback (most recent call last):
+  File "/app/scrap_audio.py", line 183, in process_conversation
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+AttributeError: 'VoiceGenerator' object has no attribute 'call_count'
+2025-08-07 19:17:58,209 - INFO - Generating for: 'Correct. It measures how the effort scales with more data.' with ID: 2
+2025-08-07 19:17:58,338 - INFO - Cookies cleared.
+2025-08-07 19:18:02,642 - INFO - Video URL: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_yxb4g57e.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=Y08DIykosby%2BTe9dZtujnWojVUbJUyFYLkzL3u3K1PaQlxjqT5HbI59KNbCmB1BHMk6WbJvkgeI5iQMgxQ7jPR%2FpE3hPxE77Lj8lognQXfrzA%2F%2BY8g2Yo2dG0T48gu7MysIx9FLwR5BTojck8T4l0U0KG%2FZ4t1SzfQ0eW6SUt2yJz3B6RjJHoNoiywk00yKuOv%2BnFP7gPOJRSI0uPHOn6YboGdN5fCVHAqG2zISLCQjdY%2FuPL4E%2BebIf2mF3bErUiDV7%2FVhA0W%2BQNPI%2FDu06eRf8M5EMqvv5gM7NQvE6y22KndwYgobzPu87D6ej62eA1tiaL7iWGJsqljfV9iOfew%3D%3D
+2025-08-07 19:18:02,643 - INFO - Downloading from: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_yxb4g57e.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=Y08DIykosby%2BTe9dZtujnWojVUbJUyFYLkzL3u3K1PaQlxjqT5HbI59KNbCmB1BHMk6WbJvkgeI5iQMgxQ7jPR%2FpE3hPxE77Lj8lognQXfrzA%2F%2BY8g2Yo2dG0T48gu7MysIx9FLwR5BTojck8T4l0U0KG%2FZ4t1SzfQ0eW6SUt2yJz3B6RjJHoNoiywk00yKuOv%2BnFP7gPOJRSI0uPHOn6YboGdN5fCVHAqG2zISLCQjdY%2FuPL4E%2BebIf2mF3bErUiDV7%2FVhA0W%2BQNPI%2FDu06eRf8M5EMqvv5gM7NQvE6y22KndwYgobzPu87D6ej62eA1tiaL7iWGJsqljfV9iOfew%3D%3D
+2025-08-07 19:18:03,129 - INFO - Video downloaded successfully!
+2025-08-07 19:18:03,129 - INFO - Converting peter_voice_2.mp4 to audio_assests/peter_audio_2.mp3
+2025-08-07 19:18:03,420 - INFO - Deleted video file: peter_voice_2.mp4
+2025-08-07 19:18:03,420 - INFO - Audio saved as audio_assests/peter_audio_2.mp3
+2025-08-07 19:18:04,654 - INFO - Processed audio saved to audio_assests/peter_audio_2.mp3
+2025-08-07 19:18:04,655 - ERROR - Error processing conversation ID 2: 'VoiceGenerator' object has no attribute 'call_count'
+Traceback (most recent call last):
+  File "/app/scrap_audio.py", line 183, in process_conversation
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+AttributeError: 'VoiceGenerator' object has no attribute 'call_count'
+2025-08-07 19:18:04,657 - INFO - Generating for: 'And space complexity?' with ID: 3
+2025-08-07 19:18:04,800 - INFO - Cookies cleared.
+2025-08-07 19:19:36,201 - ERROR - Error during sentence generation (attempt 1): Message: 
+Stacktrace:
+#0 0x5905c0338a9e <unknown>
+#1 0x5905bfdceec1 <unknown>
+#2 0x5905bfe19bbf <unknown>
+#3 0x5905bfe19d91 <unknown>
+#4 0x5905bfe5ec34 <unknown>
+#5 0x5905bfe3d5cd <unknown>
+#6 0x5905bfe5c9e4 <unknown>
+#7 0x5905bfe3d373 <unknown>
+#8 0x5905bfe0df09 <unknown>
+#9 0x5905bfe0ea71 <unknown>
+#10 0x5905c03044fa <unknown>
+#11 0x5905c03077c1 <unknown>
+#12 0x5905c0307258 <unknown>
+#13 0x5905c0307c65 <unknown>
+#14 0x5905c02ee05c <unknown>
+#15 0x5905c0307fd1 <unknown>
+#16 0x5905c02d6dca <unknown>
+#17 0x5905c0326345 <unknown>
+#18 0x5905c032653e <unknown>
+#19 0x5905c03375d5 <unknown>
+#20 0x7ebe620be1f5 <unknown>
+Traceback (most recent call last):
+  File "/app/scrap_audio.py", line 139, in generate_audio_from_sentence
+    video_element = WebDriverWait(self.driver, 90).until(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/selenium/webdriver/support/wait.py", line 105, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+#0 0x5905c0338a9e <unknown>
+#1 0x5905bfdceec1 <unknown>
+#2 0x5905bfe19bbf <unknown>
+#3 0x5905bfe19d91 <unknown>
+#4 0x5905bfe5ec34 <unknown>
+#5 0x5905bfe3d5cd <unknown>
+#6 0x5905bfe5c9e4 <unknown>
+#7 0x5905bfe3d373 <unknown>
+#8 0x5905bfe0df09 <unknown>
+#9 0x5905bfe0ea71 <unknown>
+#10 0x5905c03044fa <unknown>
+#11 0x5905c03077c1 <unknown>
+#12 0x5905c0307258 <unknown>
+#13 0x5905c0307c65 <unknown>
+#14 0x5905c02ee05c <unknown>
+#15 0x5905c0307fd1 <unknown>
+#16 0x5905c02d6dca <unknown>
+#17 0x5905c0326345 <unknown>
+#18 0x5905c032653e <unknown>
+#19 0x5905c03375d5 <unknown>
+#20 0x7ebe620be1f5 <unknown>
+
+2025-08-07 19:19:36,203 - ERROR - Error processing conversation ID 3: Message: 
+Stacktrace:
+#0 0x5905c0338a9e <unknown>
+#1 0x5905bfdceec1 <unknown>
+#2 0x5905bfe19bbf <unknown>
+#3 0x5905bfe19d91 <unknown>
+#4 0x5905bfe5ec34 <unknown>
+#5 0x5905bfe3d5cd <unknown>
+#6 0x5905bfe5c9e4 <unknown>
+#7 0x5905bfe3d373 <unknown>
+#8 0x5905bfe0df09 <unknown>
+#9 0x5905bfe0ea71 <unknown>
+#10 0x5905c03044fa <unknown>
+#11 0x5905c03077c1 <unknown>
+#12 0x5905c0307258 <unknown>
+#13 0x5905c0307c65 <unknown>
+#14 0x5905c02ee05c <unknown>
+#15 0x5905c0307fd1 <unknown>
+#16 0x5905c02d6dca <unknown>
+#17 0x5905c0326345 <unknown>
+#18 0x5905c032653e <unknown>
+#19 0x5905c03375d5 <unknown>
+#20 0x7ebe620be1f5 <unknown>
+Traceback (most recent call last):
+  File "/app/scrap_audio.py", line 182, in process_conversation
+    self.generate_audio_from_sentence(sentence, speaker, dialogue_id)
+  File "/app/scrap_audio.py", line 139, in generate_audio_from_sentence
+    video_element = WebDriverWait(self.driver, 90).until(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/selenium/webdriver/support/wait.py", line 105, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+#0 0x5905c0338a9e <unknown>
+#1 0x5905bfdceec1 <unknown>
+#2 0x5905bfe19bbf <unknown>
+#3 0x5905bfe19d91 <unknown>
+#4 0x5905bfe5ec34 <unknown>
+#5 0x5905bfe3d5cd <unknown>
+#6 0x5905bfe5c9e4 <unknown>
+#7 0x5905bfe3d373 <unknown>
+#8 0x5905bfe0df09 <unknown>
+#9 0x5905bfe0ea71 <unknown>
+#10 0x5905c03044fa <unknown>
+#11 0x5905c03077c1 <unknown>
+#12 0x5905c0307258 <unknown>
+#13 0x5905c0307c65 <unknown>
+#14 0x5905c02ee05c <unknown>
+#15 0x5905c0307fd1 <unknown>
+#16 0x5905c02d6dca <unknown>
+#17 0x5905c0326345 <unknown>
+#18 0x5905c032653e <unknown>
+#19 0x5905c03375d5 <unknown>
+#20 0x7ebe620be1f5 <unknown>
+
+2025-08-07 19:19:36,205 - INFO - Generating for: 'It measures how much memory your code needs as input grows.' with ID: 4
+2025-08-07 19:19:36,322 - INFO - Cookies cleared.
+2025-08-07 19:19:40,657 - INFO - Video URL: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_gjufy3xy.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=TcbcmJiH1Qnxu2%2Faadg6EReO9LOEDNFvHuCcL8783H0VrY5MlTau8GzbP82NWM7cVKehgMuO%2FjaEsWAnqe3O3FlW03oZu62nmw6j%2Fiqvuoymq2i0ratu8iP0Zc3ebCWVAUBGEFvX%2FK8nI7kb8stYyK4NskPreacuXPtkQfuNVgUXcNU8IuERxrf%2FjzFeeFNAcA21nZGJVzCxf8FkIofVjcPZa2IKxUahsju7VmpeJQWxmJP%2F2C9cYl9ZS7sy6eHggHe0tDFsDiO5ATrPqcbtq8cQTw3cfQClP1lN%2FU616Fwp9Ha1zGJeJe%2FLNHhkI5QgNGX8Kw4CwwqPsZaDgTkk4Q%3D%3D
+2025-08-07 19:19:40,657 - INFO - Downloading from: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_gjufy3xy.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=TcbcmJiH1Qnxu2%2Faadg6EReO9LOEDNFvHuCcL8783H0VrY5MlTau8GzbP82NWM7cVKehgMuO%2FjaEsWAnqe3O3FlW03oZu62nmw6j%2Fiqvuoymq2i0ratu8iP0Zc3ebCWVAUBGEFvX%2FK8nI7kb8stYyK4NskPreacuXPtkQfuNVgUXcNU8IuERxrf%2FjzFeeFNAcA21nZGJVzCxf8FkIofVjcPZa2IKxUahsju7VmpeJQWxmJP%2F2C9cYl9ZS7sy6eHggHe0tDFsDiO5ATrPqcbtq8cQTw3cfQClP1lN%2FU616Fwp9Ha1zGJeJe%2FLNHhkI5QgNGX8Kw4CwwqPsZaDgTkk4Q%3D%3D
+2025-08-07 19:19:41,104 - INFO - Video downloaded successfully!
+2025-08-07 19:19:41,104 - INFO - Converting peter_voice_4.mp4 to audio_assests/peter_audio_4.mp3
+2025-08-07 19:19:41,391 - INFO - Deleted video file: peter_voice_4.mp4
+2025-08-07 19:19:41,391 - INFO - Audio saved as audio_assests/peter_audio_4.mp3
+2025-08-07 19:19:42,579 - INFO - Processed audio saved to audio_assests/peter_audio_4.mp3
+2025-08-07 19:19:42,579 - ERROR - Error processing conversation ID 4: 'VoiceGenerator' object has no attribute 'call_count'
+Traceback (most recent call last):
+  File "/app/scrap_audio.py", line 183, in process_conversation
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+AttributeError: 'VoiceGenerator' object has no attribute 'call_count'
+2025-08-07 19:19:42,581 - INFO - Generating for: 'So time is speed, space is memory?' with ID: 5
+2025-08-07 19:19:42,676 - INFO - Cookies cleared.
+2025-08-07 19:19:46,632 - INFO - Video URL: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_pdnx1pzo.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=MD6whlE2rnhtQgTay%2FO9ffXGB%2Fa5nMS%2BM5raCAId0MeP19oGhhus69qbD2ZMIdbA89hWO8yKxIT4lNW7DB03RFFYP4gU3qiZuOsY8kGHM7PzX%2Fox93IpXE0%2BNhp8qYZzKfqLjD4P%2BgUPpPN3biOvVlGrUfIkR67MUNZNf8Kh2TFKrUlOmjp5cGMR32PVucNlwH15JC2FPEqQ0%2BVvkQmZJ4fn0Hlj0%2BBJRxMJX4ZojPBXjHUO7yOuK98jca7hnxMiyv9s7nhZTDyxyBvmcXCyz5XOCC6K4IXdaQ2c9Gdf5UBqLOO4RcskLDf1XcLTf0s3hFxzLD9Najz377fHJU9JQA%3D%3D
+2025-08-07 19:19:46,632 - INFO - Downloading from: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_pdnx1pzo.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=MD6whlE2rnhtQgTay%2FO9ffXGB%2Fa5nMS%2BM5raCAId0MeP19oGhhus69qbD2ZMIdbA89hWO8yKxIT4lNW7DB03RFFYP4gU3qiZuOsY8kGHM7PzX%2Fox93IpXE0%2BNhp8qYZzKfqLjD4P%2BgUPpPN3biOvVlGrUfIkR67MUNZNf8Kh2TFKrUlOmjp5cGMR32PVucNlwH15JC2FPEqQ0%2BVvkQmZJ4fn0Hlj0%2BBJRxMJX4ZojPBXjHUO7yOuK98jca7hnxMiyv9s7nhZTDyxyBvmcXCyz5XOCC6K4IXdaQ2c9Gdf5UBqLOO4RcskLDf1XcLTf0s3hFxzLD9Najz377fHJU9JQA%3D%3D
+2025-08-07 19:19:47,016 - INFO - Video downloaded successfully!
+2025-08-07 19:19:47,017 - INFO - Converting stewie_voice_5.mp4 to audio_assests/stewie_audio_5.mp3
+2025-08-07 19:19:47,344 - INFO - Deleted video file: stewie_voice_5.mp4
+2025-08-07 19:19:47,344 - INFO - Audio saved as audio_assests/stewie_audio_5.mp3
+2025-08-07 19:19:48,512 - INFO - Processed audio saved to audio_assests/stewie_audio_5.mp3
+2025-08-07 19:19:48,512 - ERROR - Error processing conversation ID 5: 'VoiceGenerator' object has no attribute 'call_count'
+Traceback (most recent call last):
+  File "/app/scrap_audio.py", line 183, in process_conversation
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+AttributeError: 'VoiceGenerator' object has no attribute 'call_count'
+2025-08-07 19:19:48,515 - INFO - Generating for: 'Exactly. Both use Big O to describe growth.' with ID: 6
+2025-08-07 19:19:48,643 - INFO - Cookies cleared.
+2025-08-07 19:19:52,576 - INFO - Video URL: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_okh1oj6j.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=dH%2BaIKQTxCLjguBGGNx%2BSXrcIbUJC48GaBS5GSaLNF3UFdrEY0HreIauqy%2BvA%2B7Qw7Vm55WkQATCIFoQji6YvIzWuwfjqLjFzNB7LQN1ssnnVJbf7h%2Fs2%2Bb7GhxliQI4kKCJvnl8oqR1wOibKU82exIfuxbrLEbuUunUOJRNOdKuv0MoRf%2F6hZe4L8KBwD%2FHTVNW3JEGBvdqX2AyG8tFnnfKurRB4sQPY2ndL18iHnxMJpz4BN8wBmpuyA9OpaD66tMrqMqE323UzK9k7XEkjM48r4JYy7U3B5qfbVStw5jCYmsed4nPptiONj6ErH9XATbDSgNaYdpAZhfohSm99w%3D%3D
+2025-08-07 19:19:52,576 - INFO - Downloading from: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_okh1oj6j.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=dH%2BaIKQTxCLjguBGGNx%2BSXrcIbUJC48GaBS5GSaLNF3UFdrEY0HreIauqy%2BvA%2B7Qw7Vm55WkQATCIFoQji6YvIzWuwfjqLjFzNB7LQN1ssnnVJbf7h%2Fs2%2Bb7GhxliQI4kKCJvnl8oqR1wOibKU82exIfuxbrLEbuUunUOJRNOdKuv0MoRf%2F6hZe4L8KBwD%2FHTVNW3JEGBvdqX2AyG8tFnnfKurRB4sQPY2ndL18iHnxMJpz4BN8wBmpuyA9OpaD66tMrqMqE323UzK9k7XEkjM48r4JYy7U3B5qfbVStw5jCYmsed4nPptiONj6ErH9XATbDSgNaYdpAZhfohSm99w%3D%3D
+2025-08-07 19:19:52,957 - INFO - Video downloaded successfully!
+2025-08-07 19:19:52,958 - INFO - Converting peter_voice_6.mp4 to audio_assests/peter_audio_6.mp3
+2025-08-07 19:19:53,224 - INFO - Deleted video file: peter_voice_6.mp4
+2025-08-07 19:19:53,224 - INFO - Audio saved as audio_assests/peter_audio_6.mp3
+2025-08-07 19:19:54,300 - INFO - Processed audio saved to audio_assests/peter_audio_6.mp3
+2025-08-07 19:19:54,301 - ERROR - Error processing conversation ID 6: 'VoiceGenerator' object has no attribute 'call_count'
+Traceback (most recent call last):
+  File "/app/scrap_audio.py", line 183, in process_conversation
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+AttributeError: 'VoiceGenerator' object has no attribute 'call_count'
+2025-08-07 19:19:54,304 - INFO - Generating for: 'O of one means constant time and space?' with ID: 7
+2025-08-07 19:19:54,419 - INFO - Cookies cleared.
+2025-08-07 19:21:25,889 - ERROR - Error during sentence generation (attempt 1): Message: 
+Stacktrace:
+#0 0x5905c0338a9e <unknown>
+#1 0x5905bfdceec1 <unknown>
+#2 0x5905bfe19bbf <unknown>
+#3 0x5905bfe19d91 <unknown>
+#4 0x5905bfe5ec34 <unknown>
+#5 0x5905bfe3d5cd <unknown>
+#6 0x5905bfe5c9e4 <unknown>
+#7 0x5905bfe3d373 <unknown>
+#8 0x5905bfe0df09 <unknown>
+#9 0x5905bfe0ea71 <unknown>
+#10 0x5905c03044fa <unknown>
+#11 0x5905c03077c1 <unknown>
+#12 0x5905c0307258 <unknown>
+#13 0x5905c0307c65 <unknown>
+#14 0x5905c02ee05c <unknown>
+#15 0x5905c0307fd1 <unknown>
+#16 0x5905c02d6dca <unknown>
+#17 0x5905c0326345 <unknown>
+#18 0x5905c032653e <unknown>
+#19 0x5905c03375d5 <unknown>
+#20 0x7ebe620be1f5 <unknown>
+Traceback (most recent call last):
+  File "/app/scrap_audio.py", line 139, in generate_audio_from_sentence
+    video_element = WebDriverWait(self.driver, 90).until(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/selenium/webdriver/support/wait.py", line 105, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+#0 0x5905c0338a9e <unknown>
+#1 0x5905bfdceec1 <unknown>
+#2 0x5905bfe19bbf <unknown>
+#3 0x5905bfe19d91 <unknown>
+#4 0x5905bfe5ec34 <unknown>
+#5 0x5905bfe3d5cd <unknown>
+#6 0x5905bfe5c9e4 <unknown>
+#7 0x5905bfe3d373 <unknown>
+#8 0x5905bfe0df09 <unknown>
+#9 0x5905bfe0ea71 <unknown>
+#10 0x5905c03044fa <unknown>
+#11 0x5905c03077c1 <unknown>
+#12 0x5905c0307258 <unknown>
+#13 0x5905c0307c65 <unknown>
+#14 0x5905c02ee05c <unknown>
+#15 0x5905c0307fd1 <unknown>
+#16 0x5905c02d6dca <unknown>
+#17 0x5905c0326345 <unknown>
+#18 0x5905c032653e <unknown>
+#19 0x5905c03375d5 <unknown>
+#20 0x7ebe620be1f5 <unknown>
+
+2025-08-07 19:21:25,890 - ERROR - Error processing conversation ID 7: Message: 
+Stacktrace:
+#0 0x5905c0338a9e <unknown>
+#1 0x5905bfdceec1 <unknown>
+#2 0x5905bfe19bbf <unknown>
+#3 0x5905bfe19d91 <unknown>
+#4 0x5905bfe5ec34 <unknown>
+#5 0x5905bfe3d5cd <unknown>
+#6 0x5905bfe5c9e4 <unknown>
+#7 0x5905bfe3d373 <unknown>
+#8 0x5905bfe0df09 <unknown>
+#9 0x5905bfe0ea71 <unknown>
+#10 0x5905c03044fa <unknown>
+#11 0x5905c03077c1 <unknown>
+#12 0x5905c0307258 <unknown>
+#13 0x5905c0307c65 <unknown>
+#14 0x5905c02ee05c <unknown>
+#15 0x5905c0307fd1 <unknown>
+#16 0x5905c02d6dca <unknown>
+#17 0x5905c0326345 <unknown>
+#18 0x5905c032653e <unknown>
+#19 0x5905c03375d5 <unknown>
+#20 0x7ebe620be1f5 <unknown>
+Traceback (most recent call last):
+  File "/app/scrap_audio.py", line 182, in process_conversation
+    self.generate_audio_from_sentence(sentence, speaker, dialogue_id)
+  File "/app/scrap_audio.py", line 139, in generate_audio_from_sentence
+    video_element = WebDriverWait(self.driver, 90).until(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/selenium/webdriver/support/wait.py", line 105, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+#0 0x5905c0338a9e <unknown>
+#1 0x5905bfdceec1 <unknown>
+#2 0x5905bfe19bbf <unknown>
+#3 0x5905bfe19d91 <unknown>
+#4 0x5905bfe5ec34 <unknown>
+#5 0x5905bfe3d5cd <unknown>
+#6 0x5905bfe5c9e4 <unknown>
+#7 0x5905bfe3d373 <unknown>
+#8 0x5905bfe0df09 <unknown>
+#9 0x5905bfe0ea71 <unknown>
+#10 0x5905c03044fa <unknown>
+#11 0x5905c03077c1 <unknown>
+#12 0x5905c0307258 <unknown>
+#13 0x5905c0307c65 <unknown>
+#14 0x5905c02ee05c <unknown>
+#15 0x5905c0307fd1 <unknown>
+#16 0x5905c02d6dca <unknown>
+#17 0x5905c0326345 <unknown>
+#18 0x5905c032653e <unknown>
+#19 0x5905c03375d5 <unknown>
+#20 0x7ebe620be1f5 <unknown>
+
+2025-08-07 19:21:25,892 - INFO - Generating for: 'Yes. It doesn’t matter how big the input is.' with ID: 8
+2025-08-07 19:21:26,054 - INFO - Cookies cleared.
+2025-08-07 19:21:30,156 - INFO - Video URL: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_dnnpy7k1.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=HqH8sZkxsAes6trKKavSpb2aCaJKKwW9fK6xiCu7QvcFO9qFv9jSlQ%2BrWHcy9vAPrnkZAJ0IBQ4zI84qJxriZ3z41yCMhoaMM8vCXdjSJdHJn1TgdHc095G%2FU6rsmSdP15r7UScu0nHL%2BWrm8IHoz40IbUpJyjvy%2BMtJXIsG2IwG8tEHtyh%2FM%2BmX9ad1lVLdzHllaPptXF7odp1kFfnGpiIvZ9aQzuilxtMl7qj12BWWKIJF80k1wikWH8LkRKJ5Rz9u7XxSkQ%2BzUoy5oOa8OnFr%2BFsl%2BeLugpMrSx0qcbWn80QWcbMHuff76ZJUTWpccABsvFh2iak0m%2FEHiOjCYw%3D%3D
+2025-08-07 19:21:30,157 - INFO - Downloading from: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_dnnpy7k1.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=HqH8sZkxsAes6trKKavSpb2aCaJKKwW9fK6xiCu7QvcFO9qFv9jSlQ%2BrWHcy9vAPrnkZAJ0IBQ4zI84qJxriZ3z41yCMhoaMM8vCXdjSJdHJn1TgdHc095G%2FU6rsmSdP15r7UScu0nHL%2BWrm8IHoz40IbUpJyjvy%2BMtJXIsG2IwG8tEHtyh%2FM%2BmX9ad1lVLdzHllaPptXF7odp1kFfnGpiIvZ9aQzuilxtMl7qj12BWWKIJF80k1wikWH8LkRKJ5Rz9u7XxSkQ%2BzUoy5oOa8OnFr%2BFsl%2BeLugpMrSx0qcbWn80QWcbMHuff76ZJUTWpccABsvFh2iak0m%2FEHiOjCYw%3D%3D
+2025-08-07 19:21:30,605 - INFO - Video downloaded successfully!
+2025-08-07 19:21:30,605 - INFO - Converting peter_voice_8.mp4 to audio_assests/peter_audio_8.mp3
+2025-08-07 19:21:30,868 - INFO - Deleted video file: peter_voice_8.mp4
+2025-08-07 19:21:30,869 - INFO - Audio saved as audio_assests/peter_audio_8.mp3
+2025-08-07 19:21:31,952 - INFO - Processed audio saved to audio_assests/peter_audio_8.mp3
+2025-08-07 19:21:31,952 - ERROR - Error processing conversation ID 8: 'VoiceGenerator' object has no attribute 'call_count'
+Traceback (most recent call last):
+  File "/app/scrap_audio.py", line 183, in process_conversation
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+AttributeError: 'VoiceGenerator' object has no attribute 'call_count'
+2025-08-07 19:21:31,955 - INFO - Generating for: 'Got it. So we aim for efficiency in both time and space.' with ID: 9
+2025-08-07 19:21:32,068 - INFO - Cookies cleared.
+2025-08-07 19:21:36,701 - INFO - Video URL: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_uiozc2r3.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=tNg17w%2Fp8nOnpHEsHaC9%2BZQC0xv2FJMunufZWVHtr7%2FdGTk8rgRJIFoXAK99hAKPg6C69NcI%2FmKEaj0cBKI5NCQq2c432R%2BAAQ4U7W1XKixDWNEJRFdHzhwlpVtEYUQpwNyxWY83mTSCwG%2BCCpCCCVPnizwRbT7S%2FnGtqx6kRmO6ONIbsQwJH%2BwoMYAVXuHK8QlvA6afSFeUG5hyrCafLCWIyw6wcIPM%2BaRK0AgHGrsk1e2eQ1H404cTDNF1iCaCNYSdjPlo%2BXBIa4pEquIHy0kquv98D3fllICMn9EodpNCG2V8HGJTp5edh%2BkB%2BfRy%2BU4ZjMf0OhMBrs6Mw1fb9g%3D%3D
+2025-08-07 19:21:36,702 - INFO - Downloading from: https://storage.googleapis.com/parrot-prod-21b3c.appspot.com/videos/w_uiozc2r3.mp4?GoogleAccessId=firebase-adminsdk-f20ta%40parrot-prod-21b3c.iam.gserviceaccount.com&Expires=2120860800&Signature=tNg17w%2Fp8nOnpHEsHaC9%2BZQC0xv2FJMunufZWVHtr7%2FdGTk8rgRJIFoXAK99hAKPg6C69NcI%2FmKEaj0cBKI5NCQq2c432R%2BAAQ4U7W1XKixDWNEJRFdHzhwlpVtEYUQpwNyxWY83mTSCwG%2BCCpCCCVPnizwRbT7S%2FnGtqx6kRmO6ONIbsQwJH%2BwoMYAVXuHK8QlvA6afSFeUG5hyrCafLCWIyw6wcIPM%2BaRK0AgHGrsk1e2eQ1H404cTDNF1iCaCNYSdjPlo%2BXBIa4pEquIHy0kquv98D3fllICMn9EodpNCG2V8HGJTp5edh%2BkB%2BfRy%2BU4ZjMf0OhMBrs6Mw1fb9g%3D%3D
+2025-08-07 19:21:37,191 - INFO - Video downloaded successfully!
+2025-08-07 19:21:37,191 - INFO - Converting stewie_voice_9.mp4 to audio_assests/stewie_audio_9.mp3
+2025-08-07 19:21:37,509 - INFO - Deleted video file: stewie_voice_9.mp4
+2025-08-07 19:21:37,509 - INFO - Audio saved as audio_assests/stewie_audio_9.mp3
+2025-08-07 19:21:38,897 - INFO - Processed audio saved to audio_assests/stewie_audio_9.mp3
+2025-08-07 19:21:38,898 - ERROR - Error processing conversation ID 9: 'VoiceGenerator' object has no attribute 'call_count'
+Traceback (most recent call last):
+  File "/app/scrap_audio.py", line 183, in process_conversation
+    self.call_count += 1
+    ^^^^^^^^^^^^^^^
+AttributeError: 'VoiceGenerator' object has no attribute 'call_count'
