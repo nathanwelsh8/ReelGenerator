@@ -19,5 +19,13 @@ class Settings:
     PROXY_HOST: str = os.getenv('PROXY_HOST', '')
     PROXY_PORT: str = os.getenv('PROXY_PORT', '')
 
+    INSTAGRAM_USERNAME: str = os.getenv('INSTAGRAM_USERNAME', '')
+    INSTAGRAM_PASSWORD: str = os.getenv('INSTAGRAM_PASSWORD', '')
+
+    GOOGLE_API_KEY: str = os.getenv('GOOGLE_API_KEY', '')
+    GOOGLE_SEARCH_ENGINE_CX: str = os.getenv('GOOGLE_SEARCH_ENGINE_CX', '')
+
+    GEMINI_API_KEY: str = os.getenv('GEMINI_API_KEY', '')
+
 def get_settings() -> Settings:
     return Settings()

@@ -1,0 +1,82 @@
+[
+  {
+    "title": "Attention Is All You Need",
+    "caption": "Introduced the Transformer architecture. It replaced recurrent and convolutional layers with a purely attention-based mechanism, enabling unprecedented parallelization and scalability. This architectural shift was the fundamental catalyst for the modern era of large language models.",
+    "pdf_path": "https://arxiv.org/pdf/1706.03762"
+  },
+  {
+    "title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+    "caption": "Established the paradigm of bidirectional pre-training. By introducing the Masked Language Model (MLM) objective, BERT enabled models to learn deep contextual representations from both left and right context, shattering performance benchmarks and making the \"pre-train and fine-tune\" approach the standard for natural language understanding tasks.",
+    "pdf_path": "https://arxiv.org/pdf/1810.04805"
+  },
+  {
+    "title": "Language Models are Unsupervised Multitask Learners",
+    "caption": "Demonstrated the emergence of zero-shot task performance. GPT-2 was the first compelling proof that by scaling up a language model on a diverse dataset, it could perform tasks it was never explicitly trained for, suggesting that quantitative scaling leads to qualitative leaps in capability.",
+    "pdf_path": "https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf"
+  },
+  {
+    "title": "Scaling Laws for Neural Language Models",
+    "caption": "Formalized the relationship between scale and performance. This paper empirically proved that model performance improves predictably according to power laws of model size, dataset size, and compute. It turned large-model training into a more quantitative science and provided the intellectual framework for investing in massive-scale models.",
+    "pdf_path": "https://arxiv.org/pdf/2001.08361"
+  },
+  {
+    "title": "Language Models are Few-Shot Learners",
+    "caption": "Introduced the concept of in-context learning. GPT-3, at 175B parameters, showed that a model could be \"programmed\" to perform new tasks at inference time simply by providing examples in the prompt, without any weight updates. This marked a fundamental shift away from the fine-tuning paradigm for many applications.",
+    "pdf_path": "https://arxiv.org/pdf/2005.14165"
+  },
+  {
+    "title": "Learning Transferable Visual Models From Natural Language Supervision",
+    "caption": "Created a powerful, zero-shot bridge between vision and language. CLIP used contrastive learning on 400M image-text pairs to create a shared embedding space, enabling it to classify images based on natural language descriptions with remarkable accuracy without being trained on any traditional vision datasets. It redefined multimodal learning.",
+    "pdf_path": "https://arxiv.org/pdf/2103.00020"
+  },
+  {
+    "title": "Zero-Shot Text-to-Image Generation",
+    "caption": "Proved the viability of high-fidelity, zero-shot text-to-image synthesis. The first DALL-E model applied the autoregressive Transformer paradigm to a vocabulary of visual tokens, demonstrating that the same architectural principles could be used for complex, cross-modal generative tasks and igniting the field of AI image generation.",
+    "pdf_path": "https://arxiv.org/pdf/2102.12092"
+  },
+  {
+    "title": "Mixture-of-Experts with Expert Choice Routing",
+    "caption": "Provided a more stable and efficient method for sparse model scaling. By introducing \"Expert Choice\" routing, this paper solved the critical load-balancing problem in Mixture-of-Experts (MoE) models. This architectural innovation enables a path to scale models to trillions of parameters without a proportional increase in inference compute, a crucial step beyond dense models.",
+    "pdf_path": "https://arxiv.org/pdf/2202.09368"
+  },
+  {
+    "title": "Training language models to follow instructions with human feedback",
+    "caption": "Systematized the process of aligning LLMs with human intent. This paper introduced the three-stage Reinforcement Learning from Human Feedback (RLHF) pipeline at scale. It proved that explicit alignment was more critical for model usefulness than raw scale alone, establishing the foundational technique for creating helpful and harmless AI assistants like ChatGPT.",
+    "pdf_path": "https://arxiv.org/pdf/2203.02155"
+  },
+  {
+    "title": "LLaMA: Open and Efficient Foundation Language Models",
+    "caption": "Democratized access to SOTA foundation models. LLaMA proved that high-performance models could be trained on publicly available data and, by releasing the model weights, it catalyzed an explosion of innovation in the open-source community, drastically accelerating research and development outside of large, closed labs.",
+    "pdf_path": "https://arxiv.org/pdf/2302.13971"
+  },
+  {
+    "title": "Direct Preference Optimization: Your Language Model is Secretly a Reward Model",
+    "caption": "Offered a simpler and more stable alternative to RLHF for alignment. DPO showed that the complex, multi-stage RLHF process could be mathematically reduced to a simple classification loss. This made preference-based alignment more robust, computationally cheaper, and accessible, quickly becoming a dominant method.",
+    "pdf_path": "https://arxiv.org/pdf/2305.18290"
+  },
+  {
+    "title": "Mamba: Linear-Time Sequence Modeling with Selective State Spaces",
+    "caption": "Presented the first widely-recognized, credible architectural alternative to the Transformer. Mamba, a Structured State Space Model (SSM), achieves performance competitive with Transformers but with linear-time complexity, breaking the quadratic scaling bottleneck of attention. It represents a potential next-generation architecture for AI.",
+    "pdf_path": "https://arxiv.org/pdf/2312.00752"
+  },
+  {
+    "title": "Instruction Pre-Training: Language Models are Supervised Multitask Learners",
+    "caption": "Evolves the alignment paradigm by integrating instruction following into the pre-training stage. Instead of being a post-training step, this work demonstrates that scaling supervised multitask learning during pre-training leads to superior generalization and performance, challenging the dominance of purely unsupervised methods for building foundational capabilities.",
+    "pdf_path": "https://arxiv.org/pdf/2406.14491"
+  },
+  {
+    "title": "Inference Scaling Laws: An Empirical Analysis of Compute-Optimal Inference for Problem-Solving with Language Models",
+    "caption": "Established a new direction for scaling laws focused on inference-time compute. This work, associated with the release of OpenAI's o1 reasoning model, showed that performance on complex reasoning tasks scales predictably with the amount of computation used *during inference*. This shifted the focus from solely optimizing training compute to also optimizing test-time compute for superior problem-solving abilities.",
+    "pdf_path": "N/A"
+  },
+  {
+    "title": "DeepSeek-R1: A 671B Open-Weight Reasoning Model",
+    "caption": "Democratized access to frontier-level reasoning. By releasing a massive 671-billion-parameter open-weight model, DeepSeek demonstrated that reasoning performance comparable to top-tier proprietary models like OpenAI's o1 could be achieved and made publicly available, significantly lowering the cost and accessibility of state-of-the-art AI reasoning.",
+    "pdf_path": "https://arxiv.org/pdf/2501.12948"
+  },
+  {
+    "title": "Attention is All You Need Until You Need Retention",
+    "caption": "Proposed a novel architectural enhancement to the Transformer to overcome fixed-context limitations. The \"Retention Layer\" introduces a persistent memory module, enabling models to store, update, and reuse information across sessions. This facilitates incremental learning and creates a path towards more dynamic, session-aware AI systems that can adapt over time.",
+    "pdf_path": "https://arxiv.org/pdf/2501.09166"
+  }
+]

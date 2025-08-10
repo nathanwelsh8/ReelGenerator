@@ -14,6 +14,7 @@
     "google.geminicodeassist",
     "ms-toolsai.jupyter",
     "ms-python.debugpy",
-    "cweijan.vscode-office"
+    "cweijan.vscode-office",
+    "qwtel.sqlite-viewer"
   ]
 }

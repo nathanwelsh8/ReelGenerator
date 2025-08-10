@@ -11,3 +11,12 @@ __pycache__/
 
 # venv/
 # env/
+debug/
+audio_assests/
+runtime_logs/
+video_assests/
+downloaded_images/
+*.mp4
+*.log
+*.txt
+*.db

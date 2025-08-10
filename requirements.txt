@@ -5,3 +5,8 @@ selenium==4.24.0
 duckduckgo-search==8.0.1
 debugpy
 python-dotenv
+selenium-stealth
+instagrapi
+Google-Images-Search
+google-genai
+requests

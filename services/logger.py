@@ -27,5 +27,6 @@ class LoggerService:
         LoggerService._loggers[settings.LOG_FILENAME] = logger
         return logger
     
+
 def get_logger() -> Logger: 
     return LoggerService.get_logger()

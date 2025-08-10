@@ -1,23 +1,27 @@
 import sqlite3
+from utils import DialougeStatus
 
 class DBOperation:
     def __init__(self, db_name="stewie_database.db"):
         self.db_name = db_name
+        # Initialize tables
+        self.create_projects_table()
         self.create_dialouge_stage_table()
+        # Ensure project_id column exists
+        self._ensure_project_id_column()
 
     def connect(self):
         return sqlite3.connect(self.db_name)
 
-    def create_dialouge_stage_table(self):
+    def create_projects_table(self):
         query = """
-        CREATE TABLE IF NOT EXISTS dialouge_stage (
+        CREATE TABLE IF NOT EXISTS projects (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sentence TEXT NOT NULL,
-            character TEXT,
-            image TEXT,
-            image_search TEXT,
-            audio_processed INTEGER DEFAULT 0,
-            audio_process_retry INTEGER DEFAULT 0
+            title VARCHAR(256) NOT NULL,
+            caption VARCHAR(1000) NOT NULL,
+            pdf_url TEXT NOT NULL,
+            status TEXT DEFAULT 'NEW',
+            video_path TEXT
         );
         """
         try:
@@ -25,51 +29,146 @@ class DBOperation:
             cursor = conn.cursor()
             cursor.execute(query)
             conn.commit()
+            print("Table 'projects' is ready.")
+        except sqlite3.Error as e:
+            print(f"SQLite error during projects table creation: {e}")
+        finally:
+            conn.close()
+
+    def _ensure_project_id_column(self):
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            # Add project_id column if missing
+            cursor.execute("PRAGMA table_info(dialouge_stage);")
+            cols = [col[1] for col in cursor.fetchall()]
+            if 'project_id' not in cols:
+                cursor.execute("ALTER TABLE dialouge_stage ADD COLUMN project_id INTEGER;")
+                conn.commit()
+        except sqlite3.Error:
+            pass
+        finally:
+            conn.close()
+    def create_project(self, title, caption, pdf_url, status=DialougeStatus.NEW):
+        """Insert a new project and set current_project_id."""
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO projects (title, caption, pdf_url, status) VALUES (?, ?, ?, ?);",
+                (title, caption, pdf_url, status)
+            )
+            conn.commit()
+            pid = cursor.lastrowid
+            self.current_project_id = pid
+            return pid
+        except sqlite3.Error as e:
+            print(f"SQLite error during project creation: {e}")
+            return None
+        finally:
+            conn.close()
+    def create_dialouge_stage_table(self):
+        query = """
+        CREATE TABLE IF NOT EXISTS dialouge_stage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sentence TEXT NOT NULL,
+            character TEXT NOT NULL,
+            image TEXT,
+            image_search TEXT,
+            audio TEXT,
+            status TEXT DEFAULT 'NEW',
+            project_id INTEGER,
+            UNIQUE(sentence, character)
+        );
+        """
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute(query)  # <-- This line is required
+            conn.commit()
             print("Table 'dialouge_stage' is ready.")
         except sqlite3.Error as e:
             print(f"SQLite error during table creation: {e}")
         finally:
             conn.close()
 
+    def update_audio_path(self, dialogue_id, audio_path):
+        """Update the audio path for a given dialogue ID."""
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE dialouge_stage SET audio = ? WHERE id = ?;",
+                (audio_path, dialogue_id)
+            )
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"SQLite error during audio path update: {e}")
+        finally:
+            conn.close()
 
-    def add_dialogues(self, dialogues):
-            """
-            Adds a list of dialogues to the dialouge_stage table.
-            Each dialogue should be a dictionary with keys:
-            - sentence
-            - character
-            - image
-            - image_search
-            - audio_processed (default 0)
-            - audio_process_retry (default 0)
-            """
-            try:
-                conn = self.connect()
-                cursor = conn.cursor()
 
-                # Prepare insert query
-                query = """
-                    INSERT INTO dialouge_stage (sentence, character, image, image_search, audio_processed, audio_process_retry)
-                    VALUES (?, ?, ?, ?, ?, ?);
-                """
-                
-                # Insert each dialogue in the list
-                for dialogue in dialogues:
-                    sentence = dialogue.get("dialogue")
-                    character = dialogue.get("character", None)
-                    image = dialogue.get("image", None)
-                    image_search = dialogue.get("image_search", None)
-                    audio_processed = dialogue.get("audio_processed", 0)  # Default to 0 if not provided
-                    audio_process_retry = dialogue.get("audio_process_retry", 0)  # Default to 0 if not provided
 
-                    cursor.execute(query, (sentence, character, image, image_search, audio_processed, audio_process_retry))
+    def add_or_update_dialogues(self, dialogues, project_id):
+        """
+        Upserts new dialogues (by sentence+character) with status NEW. Does not overwrite existing ones.
+        """
+        if not project_id:
+            raise ValueError('project_id not set before adding dialogues')
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            for dialogue in dialogues:
+                sentence = dialogue.get("dialogue")
+                character = dialogue.get("character", None)
+                image = dialogue.get("image", None)
+                image_search = dialogue.get("image_search", None)
+                # Only insert if not exists for this project
+                cursor.execute(
+                    "INSERT OR IGNORE INTO dialouge_stage (sentence, character, image, image_search, status, project_id)"
+                    " VALUES (?, ?, ?, ?, ?, ?);",
+                    (sentence, character, image, image_search, DialougeStatus.NEW, project_id)
+                )
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"SQLite error during upsert: {e}")
+        finally:
+            conn.close()
 
-                conn.commit()
-                print(f"Successfully added {len(dialogues)} dialogues.")
-            except sqlite3.Error as e:
-                print(f"SQLite error during insertion: {e}")
-            finally:
-                conn.close()
+    def get_dialogues_by_status(self, status, project_id=None):
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            if project_id:
+                cursor.execute(
+                    "SELECT id, sentence, character, image, image_search, audio, status"
+                    " FROM dialouge_stage WHERE status = ? AND project_id = ? ORDER BY id ASC;",
+                    (status, project_id)
+                )
+            else:
+                cursor.execute(
+                    "SELECT id, sentence, character, image, image_search, audio, status"
+                    " FROM dialouge_stage WHERE status = ? ORDER BY id ASC;",
+                    (status,)
+                )
+            rows = cursor.fetchall()
+            return rows
+        except sqlite3.Error as e:
+            print(f"SQLite error: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def update_status(self, dialogue_id, status):
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute("UPDATE dialouge_stage SET status = ? WHERE id = ?", (status, dialogue_id))
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"SQLite error during status update: {e}")
+        finally:
+            conn.close()
 
 
     def get_stage_and_unprocessed_dialogues(self):
@@ -94,9 +193,9 @@ class DBOperation:
 
             # Try to fetch up to 3 unprocessed dialogues
             cursor.execute("""
-                SELECT id, sentence, character, image, image_search, audio_processed, audio_process_retry
+                SELECT id, sentence, character, image, image_search, status
                 FROM dialouge_stage
-                WHERE audio_processed = 0 AND audio_process_retry < 5
+                WHERE status = ?
                 ORDER BY id ASC
                 LIMIT 3;
             """)
@@ -110,8 +209,7 @@ class DBOperation:
                         "character": row[2],
                         "image": row[3],
                         "image_search": row[4],
-                        "audio_processed": row[5],
-                        "audio_process_retry": row[6]
+                        "status": row[5],
                     })
                 return {"stage": 1, "dialogues": dialogues}
 
@@ -124,11 +222,10 @@ class DBOperation:
         finally:
             conn.close()
 
-
-
-
-    def get_raedy_assests(self):
-  
+    def get_ready_assets(self, project_id=None):
+        """
+        Returns all dialogues with status COMPLETED (ready for video generation).
+        """
         try:
             conn = self.connect()
             cursor = conn.cursor()
@@ -137,14 +234,18 @@ class DBOperation:
             cursor.execute("SELECT COUNT(*) FROM dialouge_stage;")
             total_rows = cursor.fetchone()[0]
             if total_rows == 0:
-                None
+                return None
 
-            # Try to fetch up to 3 unprocessed dialogues
-            cursor.execute("""
-                SELECT id, sentence, character, image, image_search, audio_processed, audio_process_retry
-                FROM dialouge_stage
-                WHERE audio_processed = 1 ORDER BY id ASC;
-            """)
+            # Fetch all dialogues with status COMPLETED
+            if project_id:
+                cursor.execute(
+                    "SELECT id, sentence, character, image, image_search, audio, status"
+                    " FROM dialouge_stage"
+                    " WHERE status = ? AND project_id = ? ORDER BY id ASC;",
+                    (DialougeStatus.COMPLETED, project_id)
+                )
+            else:
+                raise ValueError("project_id must be provided to fetch ready assets")
             rows = cursor.fetchall()
             if rows:
                 dialogues = []
@@ -155,53 +256,17 @@ class DBOperation:
                         "character": row[2],
                         "image": row[3],
                         "image_search": row[4],
-                        "audio_processed": row[5],
-                        "audio_process_retry": row[6]
+                        "audio": row[5],
+                        "status": row[6]
                     })
                 return dialogues
 
-            # Table has data, but no unprocessed dialogue
             return None
         except sqlite3.Error as e:
             print(f"SQLite error: {e}")
-            return {"stage": -1, "dialogues": None}  # Error flag
+            return None
         finally:
             conn.close()
-
-
-
-    def mark_processed(self, dialogue_id, flag):
-            """
-            Marks a dialogue as processed based on the flag:
-            If flag is True, set audio_processed to 1 and increment audio_process_retry.
-            If flag is False, just increment audio_process_retry.
-            """
-            try:
-                conn = self.connect()
-                cursor = conn.cursor()
-
-                if flag:
-                    # If flag is True, set audio_processed to 1 and increment retry count
-                    cursor.execute("""
-                        UPDATE dialouge_stage
-                        SET audio_processed = 1, audio_process_retry = audio_process_retry + 1
-                        WHERE id = ?;
-                    """, (dialogue_id,))
-                else:
-                    # If flag is False, just increment retry count
-                    cursor.execute("""
-                        UPDATE dialouge_stage
-                        SET audio_process_retry = audio_process_retry + 1
-                        WHERE id = ?;
-                    """, (dialogue_id,))
-
-                conn.commit()
-                print(f"Dialogue with ID {dialogue_id} has been updated.")
-            except sqlite3.Error as e:
-                print(f"SQLite error during update: {e}")
-            finally:
-                conn.close()
-
 
     def show_all_dialogues(self):
         """
@@ -212,7 +277,7 @@ class DBOperation:
             cursor = conn.cursor()
 
             # Fetch all rows from the dialouge_stage table
-            cursor.execute("SELECT id, sentence, character, image, image_search, audio_processed, audio_process_retry FROM dialouge_stage;")
+            cursor.execute("SELECT id, sentence, character, image, image_search, status FROM dialouge_stage;")
             rows = cursor.fetchall()
 
             # Check if the table is empty
@@ -254,9 +319,107 @@ class DBOperation:
         finally:
             conn.close()
 
+    def get_project_by_status(self, status):
+        """Fetches a project by its status."""
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id, title, caption, pdf_url, status FROM projects WHERE status = ? ORDER BY id ASC LIMIT 1;",
+                (status,)
+            )
+            project = cursor.fetchone()
+            return project
+        except sqlite3.Error as e:
+            print(f"SQLite error during project fetch by status: {e}")
+            return None
+        finally:
+            conn.close()
 
+    def update_project_status(self, project_id, status):
+        """Updates the status of a project."""
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE projects SET status = ? WHERE id = ?;",
+                (status, project_id)
+            )
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"SQLite error during project status update: {e}")
+        finally:
+            conn.close()
 
+    def get_dialogues_for_processing(self, project_id):
+        """Fetches NEW or FAILED dialogues for a project."""
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id, sentence, character, image, image_search, audio, status"
+                " FROM dialouge_stage WHERE project_id = ? AND (status = 'NEW' OR status = 'FAILED') ORDER BY id ASC;",
+                (project_id,)
+            )
+            rows = cursor.fetchall()
+            return rows
+        except sqlite3.Error as e:
+            print(f"SQLite error: {e}")
+            return []
+        finally:
+            conn.close()
 
+    def get_all_dialogues_by_project(self, project_id):
+        """ Fetches all dialogues for a given project ID. """
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id, sentence, character, image, image_search, audio, status"
+                " FROM dialouge_stage WHERE project_id = ? ORDER BY id ASC;",
+                (project_id,)
+            )
+            rows = cursor.fetchall()
+            return rows
+        except sqlite3.Error as e:
+            print(f"SQLite error: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def get_projects_by_status(self, status):
+        """Fetches all projects by their status."""
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id, title, caption, pdf_url, status, video_path FROM projects WHERE status = ? ORDER BY id ASC;",
+                (status,)
+            )
+            projects = cursor.fetchall()
+            # Returning as a list of dictionaries for easier use
+            columns = [description[0] for description in cursor.description]
+            return [dict(zip(columns, project)) for project in projects]
+        except sqlite3.Error as e:
+            print(f"SQLite error during project fetch by status: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def update_project_video_path(self, project_id, video_path):
+        """Updates the video_path of a project."""
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE projects SET video_path = ? WHERE id = ?;",
+                (video_path, project_id)
+            )
+            conn.commit()
+        except sqlite3.Error as e:
+            print(f"SQLite error during project video_path update: {e}")
+        finally:
+            conn.close()
 #form  of data that  db  accepts  ...
 
 
@@ -335,7 +498,7 @@ if __name__ == "__main__":
     db.add_dialogues(convo)
     print(db.get_stage_and_unprocessed_dialogue())
     db.show_all_dialogues()
-    ready_assests=db.get_raedy_assests()
+    ready_assests=db.get_ready_assets()
     print(ready_assests)
     for dic in  ready_assests:
         print(dic)
