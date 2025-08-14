@@ -14,6 +14,7 @@ from pydub.silence import split_on_silence
 from services.proxy_manager import ProxyHttpClient
 from services.logger import get_logger
 from logging import Logger
+import shutil
 
 class VoiceGenerator:
     PETER_URL = "https://www.tryparrotai.com/ai-voice/peter-griffin"
@@ -25,6 +26,8 @@ class VoiceGenerator:
         self.driver_factory = SeleniumDriverFactory(self.logger, self.proxy_manager)
         self.output_dir = "audio_assests"
         os.makedirs(self.output_dir, exist_ok=True)
+
+        self.max_retries = 3
 
     def __del__(self):
         pass  # No persistent driver to clean up
@@ -109,10 +112,8 @@ class VoiceGenerator:
                     self.logger.warning(f"Failed to delete debug file {fp}: {e}")
         """Generate audio from sentence using the specified speaker. Uses a new proxied Selenium driver for each call. Retries up to 3 times on error, waits 5 minutes between retries.
         If db_handler and dialogue_id are provided, update DB to COMPLETED after audio is saved."""
-        max_retries = 10
         audio_path = None
-        import shutil
-        for attempt in range(max_retries):
+        for attempt in range(self.max_retries):
             # Rotate browser user data directory for each session
             user_data_dir = f"/tmp/selenium_profile_{time.time()}_{random.randint(0,10000)}"
             if os.path.exists(user_data_dir):
@@ -132,6 +133,7 @@ class VoiceGenerator:
                     "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
                     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+                    "Mozilla/5.0 (Linux; Android 12; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Mobile Safari/537.36",
                 ]
                 ua = random.choice(user_agents)
                 try:
@@ -172,7 +174,7 @@ class VoiceGenerator:
                 # --- End advanced fingerprinting ---
 
 
-                self.logger.info(f"Browser fingerprint randomized. Attempt {attempt+1} of {max_retries}")
+                self.logger.info(f"Browser fingerprint randomized. Attempt {attempt+1} of {self.max_retries}")
 
                 # Now load the page
                 driver.get(page_url)
@@ -273,16 +275,21 @@ class VoiceGenerator:
                     self.remove_silence(audio_path)
                     # If db_handler and dialogue_id are provided, update DB
                     if db_handler is not None and dialogue_id is not None and audio_path is not None:
-                        db_handler.update_audio_path(dialogue_id, audio_path)
-                        db_handler.update_status(dialogue_id, 'COMPLETED')
+                        try:
+                            db_handler.update_audio_path(dialogue_id, audio_path)
+                            from utils import DialougeStatus
+                            db_handler.update_status(dialogue_id, DialougeStatus.COMPLETED)
+                        except Exception as db_e:
+                            # Non-fatal; main flow will reconcile
+                            self.logger.warning(f"DB update failed for dialogue {dialogue_id}: {db_e}")
                 else:
                     self.logger.warning("Video URL not found.")
                 driver.quit()
                 return audio_path
             except Exception as e:
-                self.logger.error(f"Error during sentence generation (attempt {attempt+1}/{max_retries})")
+                self.logger.error(f"Error during sentence generation (attempt {attempt+1}/{self.max_retries})")
                 driver.quit()
-                if attempt < max_retries - 1:
+                if attempt < self.max_retries - 1:
                     continue
                 else:
                     raise

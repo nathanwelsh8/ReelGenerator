@@ -61,7 +61,7 @@ def generate_from_pdf_content(pdf_content: bytes):
                             ),
                             "dialogue": genai.types.Schema(
                                 type = genai.types.Type.STRING,
-                                description = "The line of dialogue spoken by the character.",
+                                description = "The line of dialogue spoken by the character. Never more than 99 characters",
                             ),
                             "character": genai.types.Schema(
                                 type = genai.types.Type.STRING,
@@ -92,8 +92,8 @@ The conversation should be between Peter Griffin (Peter) and Stewie Griffin (Ste
 1. The dialogue should start with Stewie asking Peter an opening question on the topic/document
 2. Peter should explain the topic in detail to Stewie as if they were a novice in that field.
 3. Stewie should optionally ask between one and three follow-up questions to explore key areas further. Only do this if it benefits the explanation.
-4. Each line must NOT be more than 100 characters. If a dialogue needs to run over 100 characters then split it over multiple consecutive dialogue entries in the output such that each does not exceed the 100-character limit. To help with this, you can put each sentence as a new dialogue for that character. 
-5. The dialogue should end with stewie thanking peter for explaining. It does not have to be verbatim and can be tongue-in-cheek or witty. 
+4. Each line must NOT be more than 99 characters. If a dialogue needs to run over 99 characters then split it over multiple consecutive dialogue entries in the output such that each does not exceed the 99-character limit. To help with this, you can put each sentence as a new dialogue for that character.
+5. The dialogue should end with stewie thanking peter for explaining. It does not have to be verbatim and can be tongue-in-cheek or witty.
 
 ## image rules
 When Peter is speaking, the image should be \"peter.png\"

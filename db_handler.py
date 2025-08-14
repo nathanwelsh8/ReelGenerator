@@ -170,6 +170,49 @@ class DBOperation:
         finally:
             conn.close()
 
+    def reconcile_dialogue_statuses(self, project_id=None):
+        """
+        Fix inconsistent statuses:
+        - Mark any row with a non-empty audio path as COMPLETED.
+        - Reset INPROGRESS rows that have no audio path back to NEW so they can be retried.
+        Returns a dict with counts of updates performed.
+        """
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+
+            params = []
+            where_project = ""
+            if project_id is not None:
+                where_project = " AND project_id = ?"
+                params.append(project_id)
+
+            # 1) Complete rows that have audio
+            sql_complete = (
+                "UPDATE dialouge_stage SET status = ? "
+                "WHERE status != ? "
+                "AND audio IS NOT NULL AND TRIM(audio) <> ''" + where_project + ";"
+            )
+            cursor.execute(sql_complete, [DialougeStatus.COMPLETED, DialougeStatus.COMPLETED] + params)
+            completed_fixed = cursor.rowcount
+
+            # 2) Requeue stuck INPROGRESS without audio
+            sql_requeue = (
+                "UPDATE dialouge_stage SET status = ? "
+                "WHERE status = ? "
+                "AND (audio IS NULL OR TRIM(audio) = '')" + where_project + ";"
+            )
+            cursor.execute(sql_requeue, [DialougeStatus.NEW, DialougeStatus.INPROGRESS] + params)
+            requeued = cursor.rowcount
+
+            conn.commit()
+            return {"completed_fixed": completed_fixed, "requeued": requeued}
+        except sqlite3.Error as e:
+            print(f"SQLite error during reconciliation: {e}")
+            return {"completed_fixed": 0, "requeued": 0}
+        finally:
+            conn.close()
+
 
     def get_stage_and_unprocessed_dialogues(self):
         """
@@ -358,8 +401,8 @@ class DBOperation:
             cursor = conn.cursor()
             cursor.execute(
                 "SELECT id, sentence, character, image, image_search, audio, status"
-                " FROM dialouge_stage WHERE project_id = ? AND (status = 'NEW' OR status = 'FAILED') ORDER BY id ASC;",
-                (project_id,)
+                " FROM dialouge_stage WHERE project_id = ? AND (status = ? OR status = ?) ORDER BY id ASC;",
+                (project_id, DialougeStatus.NEW, DialougeStatus.FAILED)
             )
             rows = cursor.fetchall()
             return rows

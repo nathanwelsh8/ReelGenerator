@@ -1,5 +1,6 @@
 import os
 import warnings
+import random
 warnings.filterwarnings("ignore")
 os.environ["IMAGEMAGICK_BINARY"] = "/usr/bin/convert"
 from moviepy.editor import (
@@ -63,8 +64,14 @@ class DynamicVideoEditor:
 
         # Load the background video and trim or loop to match the required duration
         video_clip = VideoFileClip(video_path)
-        if video_clip.duration >= video_duration:
-            video_clip = video_clip.subclip(0, video_duration)
+
+        # If the video is more than twice the required duration, start at a random point
+        if video_clip.duration > 2 * video_duration:
+            max_start_time = video_clip.duration - video_duration
+            start_time = random.uniform(15, max_start_time)
+            video_clip = video_clip.subclip(start_time, start_time + video_duration)
+        elif video_clip.duration >= video_duration:
+            video_clip = video_clip.subclip(15, video_duration)
         else:
             # Loop the video to match the required duration
             n_loops = int(video_duration // video_clip.duration) + 1
