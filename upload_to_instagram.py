@@ -4,6 +4,8 @@ import os
 from settings import get_settings
 from db_handler import DBOperation
 from utils import DialougeStatus
+from services.thumbnail_generator import generate as generate_thumbnail
+from services.caption_generator import generate_caption
 
 def main():
     settings = get_settings()
@@ -32,7 +34,9 @@ def main():
     for project in completed_projects:
         project_id = project['id']
         video_path = project['video_path']
-        caption = project['caption']
+        caption = get_caption(project)
+
+        thumbnail_path = get_thumbnail_path(project)
 
         if not video_path or not os.path.isfile(video_path):
             print(f"Video file not found for project {project_id}: {video_path}")
@@ -44,7 +48,7 @@ def main():
 
         print(f"Uploading reel for project {project_id}...")
         try:
-            media = cl.clip_upload(video_path, caption=caption)
+            media = cl.clip_upload(video_path, caption=caption, thumbnail=thumbnail_path)
             print(f"Reel uploaded successfully! Media ID: {media.pk}")
             # Update project status to UPLOADED
             db.update_project_status(project_id, DialougeStatus.UPLOADED)
@@ -52,6 +56,16 @@ def main():
         except Exception as e:
             print(f"Failed to upload reel for project {project_id}: {e}")
             db.update_project_status(project_id, DialougeStatus.FAILED)
+
+
+def get_thumbnail_path(project:dict)->str:
+    # Generate thumbnail using the title
+    print("Generating thumbnail...")
+    return generate_thumbnail(project['title'], f"thumbnail_{project['id']}")
+
+def get_caption(project:dict)->str:
+    print("Generating caption...")
+    return generate_caption(project['title'], project['caption'], project['pdf_url'])
 
 if __name__ == "__main__":
     main()
