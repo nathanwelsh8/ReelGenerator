@@ -33,7 +33,10 @@ class ProxyHttpClient:
     def get_proxy_server_uri(self) -> str:
         """Returns the proxy string for the current session."""
         uri = self._get_proxy_config()
-        self.logger.info(f"Proxy IP: {self.get('https://httpbin.org/ip', {}).content.decode('utf-8')}")
+        try:
+            self.logger.info(f"Proxy IP: {self.get('https://httpbin.org/ip', {}).content.decode('utf-8')}")
+        except Exception:
+            pass
         return uri
 
     def _get_proxy_config(self) -> str:

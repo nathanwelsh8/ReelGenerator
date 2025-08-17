@@ -213,7 +213,7 @@ class DynamicVideoEditor:
             [self.video] + self.image_clips + self.subtitle_clips
         ).set_audio(final_audio)
 
-        final_video.write_videofile(self.output_path, codec="libx264", audio_codec="aac", fps=24)
+        final_video.write_videofile(self.output_path, codec="libx264", audio_codec="aac", fps=self.video.fps)
 
 
 # === Usage Example ===

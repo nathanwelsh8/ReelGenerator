@@ -138,7 +138,6 @@ class VoiceGenerator:
                 ua = random.choice(user_agents)
                 try:
                     driver.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": ua})
-                    self.logger.info(f"User-Agent randomized: {ua}")
                 except Exception as e:
                     self.logger.warning(f"Failed to set user agent: {e}")
 
@@ -147,7 +146,6 @@ class VoiceGenerator:
                 height = random.randint(700, 1200)
                 try:
                     driver.set_window_size(width, height)
-                    self.logger.info(f"Viewport randomized: {width}x{height}")
                 except Exception as e:
                     self.logger.warning(f"Failed to set window size: {e}")
 
@@ -159,7 +157,6 @@ class VoiceGenerator:
                     lang = random.choice(["en-US,en;q=0.9", "en-GB,en;q=0.8", "de-DE,de;q=0.9", "fr-FR,fr;q=0.9"])
                     driver.execute_cdp_cmd('Emulation.setTimezoneOverride', {"timezoneId": tz})
                     driver.execute_cdp_cmd('Emulation.setLocaleOverride', {"locale": lang.split(",")[0]})
-                    self.logger.info(f"Timezone set: {tz}, Language set: {lang}")
                 except Exception as e:
                     self.logger.warning(f"Failed to set timezone/language: {e}")
 
@@ -167,7 +164,6 @@ class VoiceGenerator:
                 try:
                     platform = random.choice(["Win32", "Linux x86_64", "MacIntel", "iPhone"])
                     driver.execute_script(f"Object.defineProperty(navigator, 'platform', {{get: () => '{platform}'}});")
-                    self.logger.info(f"Platform randomized: {platform}")
                 except Exception as e:
                     self.logger.warning(f"Failed to set platform: {e}")
 
@@ -189,7 +185,6 @@ class VoiceGenerator:
                             dbs.forEach(db => indexedDB.deleteDatabase(db.name));
                         });
                     ''')
-                    self.logger.info("All browser storage cleared on site.")
                 except Exception as e:
                     self.logger.warning(f"Failed to clear browser storage on site: {e}")
 
@@ -207,7 +202,6 @@ class VoiceGenerator:
                         if random.random() > 0.5:
                             actions.click()
                     actions.perform()
-                    self.logger.info("Simulated mouse movement and clicks.")
                 except Exception as e:
                     self.logger.warning(f"Failed to simulate mouse movement: {e}")
                 # Scroll randomly
@@ -216,12 +210,10 @@ class VoiceGenerator:
                         scroll_y = random.randint(100, 800)
                         driver.execute_script(f"window.scrollBy(0, {scroll_y});")
                         time.sleep(random.uniform(0.2, 0.7))
-                    self.logger.info("Simulated random scrolling.")
                 except Exception as e:
                     self.logger.warning(f"Failed to simulate scrolling: {e}")
                 # Random wait before interacting
                 wait_time = random.uniform(1.5, 4.0)
-                self.logger.info(f"Waiting {wait_time:.2f}s to simulate human pause.")
                 time.sleep(wait_time)
 
                 # Input text

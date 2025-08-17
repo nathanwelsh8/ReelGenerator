@@ -67,6 +67,7 @@ class DBOperation:
             return None
         finally:
             conn.close()
+            
     def create_dialouge_stage_table(self):
         query = """
         CREATE TABLE IF NOT EXISTS dialouge_stage (
@@ -213,6 +214,19 @@ class DBOperation:
         finally:
             conn.close()
 
+    
+    def get_dialouge_id(self, project_id:int)->int:
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM dialouge_stage WHERE project_id = ? ORDER BY id desc LIMIT 1;", (project_id,))
+            row = cursor.fetchone()
+            return row[0] if row else None
+        except sqlite3.Error as e:
+            print(f"SQLite error during get_dialouge_id: {e}")
+            return None
+        finally:
+            conn.close()
 
     def get_stage_and_unprocessed_dialogues(self):
         """

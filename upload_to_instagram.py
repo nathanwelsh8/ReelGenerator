@@ -59,9 +59,16 @@ def main():
 
 
 def get_thumbnail_path(project:dict)->str:
-    # Generate thumbnail using the title
     print("Generating thumbnail...")
-    return generate_thumbnail(project['title'], f"thumbnail_{project['id']}")
+    video_path = project.get('video_path')
+    if not video_path or not os.path.isfile(video_path):
+        print(f"Video path missing or not found for project {project.get('id')}: {video_path}")
+        return None
+    try:
+        return generate_thumbnail(project['title'], f"thumbnail_{project['id']}", video_path)
+    except Exception as e:
+        print(f"Thumbnail generation failed for project {project.get('id')}: {e}")
+        return None
 
 def get_caption(project:dict)->str:
     print("Generating caption...")

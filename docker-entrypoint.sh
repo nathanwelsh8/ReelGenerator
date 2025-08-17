@@ -17,6 +17,7 @@ if [ ! -f "$CRON_FILE" ]; then
 		echo 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 		echo ''
 	echo "0 * * * * root echo \"[CRON] $(date '+%Y-%m-%d %H:%M:%S') Running main.py\" >> /var/log/cron.log; cd /app && $PY /app/main.py >> /var/log/cron.log 2>&1"
+	echo "0 */2 * * * root echo \"[CRON] $(date '+%Y-%m-%d %H:%M:%S') Running upload_to_instagram.py\" >> /var/log/cron.log; cd /app && $PY /app/upload_to_instagram.py >> /var/log/cron.log 2>&1"
 	} > "$CRON_FILE"
 	chmod 0644 "$CRON_FILE"
 fi

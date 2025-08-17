@@ -5,6 +5,27 @@ from typing import List, Dict, Tuple
 from db_handler import DBOperation
 from services.dialouge_creator import fetch_pdf_from_url, generate_from_pdf_content
 from utils import DialougeStatus
+import random
+
+STEWIE_FOLLOW_FOR_MORE = "I'll be monitoring your future transmissions. Consider yourself 'followed'."
+PETER_FOLLOW_FOR_MORE = "If you wanna see more of this genius stuff, follow Professor Peter Griffin. Do it. Do it now"
+
+FOLLOW_FOR_MORE_DIALOGUE = [
+    {
+        "path": "audio_assests/static/stewie_follow_for_more.mp3", 
+        "character": "Stewie", 
+        "image": "stewie.png",
+        "dialogue": STEWIE_FOLLOW_FOR_MORE,
+        "image_search": ""
+    }, 
+    {
+        "path": "audio_assests/static/peter_follow_for_more.mp3",
+        "character": "Peter",
+        "image": "peter.png",
+        "dialogue": PETER_FOLLOW_FOR_MORE,
+        "image_search": ""
+    }
+]
 
 def add_project_flow():
     # Setup logging
@@ -44,10 +65,12 @@ def add_project_flow():
 
     MAX_RETRIES = 3
 
+    processed_any = False
     for project_data in projects:
         title = project_data.get('title', '')
         caption = project_data.get('caption', '')
-        pdf_url = project_data.get('pdf_path', '')
+        # Accept either 'pdf_path' or 'pdf_link' (current chat.json uses 'pdf_link')
+        pdf_url = project_data.get('pdf_path') or project_data.get('pdf_link') or ''
 
         if not all([title, caption, pdf_url]):
             logging.warning(f"Skipping project with incomplete data: {project_data}")
@@ -106,9 +129,37 @@ def add_project_flow():
         print(f"Project '{title}' created with ID: {project_id}")
 
         db.add_or_update_dialogues(dialogues, project_id)
-        
-    count_new = len(db.get_dialogues_by_status(DialougeStatus.NEW, project_id))
-    print(f"Added {count_new} new dialogues for project {project_id}.\n")
+        add_ending_dialouge(project_id)
+        processed_any = True
+        # Per-project summary
+        count_new = len(db.get_dialogues_by_status(DialougeStatus.NEW, project_id))
+        print(f"Added {count_new} new dialogues for project {project_id}.\n")
+
+    if not processed_any:
+        print("No projects were processed (check that chat.json has 'title', 'caption', and 'pdf_link' or 'pdf_path').")
+
+def add_ending_dialouge(project_id: int):
+        db = DBOperation()
+        print("Adding follow for more dialogue to project")
+        ending_dialogue = random.choice(FOLLOW_FOR_MORE_DIALOGUE)
+        # Insert the ending dialogue row
+        db.add_or_update_dialogues([ending_dialogue], project_id)
+        ending_dialogue_id = db.get_dialouge_id(project_id)
+
+        # Determine audio path: prefer the 'path' field on the dialogue, otherwise choose by character
+        audio_path = ending_dialogue.get("path") if isinstance(ending_dialogue, dict) else None
+        if not audio_path:
+            character = (ending_dialogue.get("character") if isinstance(ending_dialogue, dict) else None) or ""
+            if character.lower().startswith("stew"):
+                audio_path = "audio_assests/static/stewie_follow_for_more.mp3"
+            else:
+                audio_path = "audio_assests/static/peter_follow_for_more.mp3"
+
+        # Update the dialogue row with the audio path, then mark it completed
+        if ending_dialogue_id and audio_path:
+            db.update_audio_path(ending_dialogue_id, audio_path)
+        if ending_dialogue_id:
+            db.update_status(ending_dialogue_id, DialougeStatus.COMPLETED)
 
 if __name__ == "__main__":
     add_project_flow()

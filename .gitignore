@@ -21,3 +21,4 @@ downloaded_images/
 *.txt
 *.db
 *.mp4.jpg
+image_assests/thumbnails/*

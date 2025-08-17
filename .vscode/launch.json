@@ -12,5 +12,17 @@
             "program": "${file}",
             "console": "integratedTerminal"
         }
+        ,
+        {
+            "name": "Run streamlit_app",
+            "type": "python",
+            "request": "launch",
+            "module": "streamlit",
+            "args": ["run", "streamlit/streamlit_app.py", "--logger.level", "debug"],
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONUNBUFFERED": "1"
+            }
+        }
     ]
 }
