@@ -1,16 +1,41 @@
 import streamlit as st
 import sqlite3
-import random
 import os
 from typing import List, Dict, Tuple
 import html
-import time
+import sys
+import math
+
+# Ensure root path is in sys.path BEFORE importing internal packages
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
 # Import project logic pieces from existing modules
 from db_handler import DBOperation
-from services.dialouge_creator import fetch_pdf_from_url, generate_from_pdf_content
-from add_projects import FOLLOW_FOR_MORE_DIALOGUE, PETER_FOLLOW_FOR_MORE, STEWIE_FOLLOW_FOR_MORE
 from utils import DialougeStatus
+import importlib.util
+import types
+# Dynamically load project_service to avoid path ambiguity in Streamlit runtime
+service_file = os.path.join(ROOT_DIR, 'services', 'project_service.py')
+spec = importlib.util.spec_from_file_location('project_service', service_file)
+project_service = importlib.util.module_from_spec(spec) if spec and spec.loader else types.ModuleType('project_service')
+if spec and spec.loader:
+    spec.loader.exec_module(project_service)  # type: ignore
+create_project_with_dialogues = getattr(project_service, 'create_project_with_dialogues')
+ProjectExistsError = getattr(project_service, 'ProjectExistsError')
+DialogueGenerationError = getattr(project_service, 'DialogueGenerationError')
+ProjectValidationError = getattr(project_service, 'ProjectValidationError')
+# Load process_project orchestration
+try:
+    from use_cases.process_project_flow import process_project
+except ModuleNotFoundError:
+    flow_spec_path = os.path.join(ROOT_DIR, 'use_cases', 'process_project_flow.py')
+    flow_spec = importlib.util.spec_from_file_location('process_project_flow', flow_spec_path)
+    flow_module = importlib.util.module_from_spec(flow_spec) if flow_spec and flow_spec.loader else types.ModuleType('process_project_flow')
+    if flow_spec and flow_spec.loader:
+        flow_spec.loader.exec_module(flow_module)  # type: ignore
+    process_project = getattr(flow_module, 'process_project')
 
 st.set_page_config(page_title="Projects", layout="wide")
 
@@ -28,40 +53,22 @@ DB = DBOperation()
 
 # Helper to safely request a rerun; some Streamlit builds may not expose experimental_rerun
 def safe_rerun():
+    """Trigger a rerun in a version-agnostic way."""
     try:
-        st.experimental_rerun()
+        # Streamlit >= 1.30 provides st.rerun
+        if hasattr(st, 'rerun'):
+            st.rerun()
+            return
     except Exception:
-        # Fallback: change a query param to force Streamlit to refresh the page
-        try:
-                st.query_params = {"_rerun": [str(time.time())]}
-        except Exception:
-            # Last resort: write a message asking the user to manually refresh
-            st.info("Please refresh the page to see updates.")
-
-# Helper: validate dialogues
-
-def validate_dialogues(dialogues: List[Dict]) -> Tuple[bool, List[int]]:
-    failing = []
-    for idx, d in enumerate(dialogues):
-        text = d.get("dialogue", "")
-        if len(text) > 100:
-            failing.append(idx)
-    return (len(failing) == 0, failing)
-
-
-# Helper: add ending dialogue (copied from add_projects.py logic)
-def add_ending_dialogue(project_id: int):
-    db = DBOperation()
-    ending_dialogue = random.choice(FOLLOW_FOR_MORE_DIALOGUE)
-    db.add_or_update_dialogues([ending_dialogue], project_id)
-    ending_dialogue_id = db.get_dialouge_id(project_id)
-    if ending_dialogue_id:
-        db.update_status(ending_dialogue_id, DialougeStatus.COMPLETED)
+        pass
+    # Legacy or fallback: mutate session_state sentinel
+    st.session_state['_force_rerun'] = st.session_state.get('_force_rerun', 0) + 1
 
 
 # Duplicate check helper
 
 def project_exists(title: str, pdf_url: str) -> bool:
+    # Retained for quick pre-check (avoids extra error surfacing in UI)
     try:
         conn = sqlite3.connect(DB.db_name)
         cursor = conn.cursor()
@@ -81,6 +88,7 @@ with st.form(key="add_project_form"):
     title = st.text_input("Title")
     caption = st.text_area("Caption")
     pdf_path = st.text_input("PDF path or URL")
+    character = st.selectbox("Primary Character", ["Stewie", "Peter"], index=0)
     submit = st.form_submit_button("Submit")
 
     if submit:
@@ -89,53 +97,29 @@ with st.form(key="add_project_form"):
         elif project_exists(title, pdf_path):
             st.warning("A project with this title and pdf_path already exists.")
         else:
-            spinner = st.spinner("Processing project: this may take a moment...")
-            with spinner:
-                # Fetch PDF
-                pdf_content = fetch_pdf_from_url(pdf_path)
-                if not pdf_content:
-                    st.error("Failed to fetch PDF from the provided path/URL.")
-                else:
-                    # Generate dialogues with retries
-                    MAX_RETRIES = 3
-                    dialogues = None
-                    for attempt in range(1, MAX_RETRIES + 1):
-                        dialogue_data = generate_from_pdf_content(pdf_content)
-                        if not dialogue_data or "dialogue_scenes" not in dialogue_data:
-                            if attempt == MAX_RETRIES:
-                                st.error("Failed to generate dialogues after multiple attempts.")
-                            continue
-                        candidate = dialogue_data["dialogue_scenes"]
-                        required_keys = {"image", "dialogue", "character", "image_search"}
-                        if not all(required_keys.issubset(d.keys()) for d in candidate):
-                            if attempt == MAX_RETRIES:
-                                st.error("Generated dialogues are missing required keys.")
-                            continue
-                        ok, failing_idx = validate_dialogues(candidate)
-                        if not ok:
-                            if attempt == MAX_RETRIES:
-                                st.error(f"Dialogue validation failed at indices {failing_idx}.")
-                            continue
-                        dialogues = candidate
-                        break
-
-                    if dialogues is None:
-                        st.error("Could not create valid dialogues for the provided PDF.")
-                    else:
-                        project_id = DB.create_project(title, caption, pdf_path)
-                        if not project_id:
-                            st.error("Failed to create project in database.")
-                        else:
-                            DB.add_or_update_dialogues(dialogues, project_id)
-                            add_ending_dialogue(project_id)
-                            st.success(f"Project '{title}' created with ID {project_id}.")
+            with st.spinner("Processing project: this may take a moment..."):
+                try:
+                    result = create_project_with_dialogues(
+                        db=DB,
+                        project_name=title,
+                        caption=caption,
+                        pdf_url=pdf_path,
+                        character=character,
+                    )
+                    st.success(f"Project '{title}' created (ID {result['project_id']}) with {result['dialogue_count']} dialogues.")
+                except ProjectExistsError as e:
+                    st.warning(str(e))
+                except (DialogueGenerationError, ProjectValidationError) as e:
+                    st.error(str(e))
+                except Exception as e:
+                    st.error(f"Unexpected error: {e}")
+                finally:
+                    safe_rerun()
 
 # --- Toolbar ---
-col1, col2 = st.columns([1, 4])
+col1, = st.columns([5])
+
 with col1:
-    if st.button("Refresh"):
-        safe_rerun()
-with col2:
     if st.button("Reconcile dialogue statuses"):
         result = DB.reconcile_dialogue_statuses()
         st.info(f"Reconciled: {result}")
@@ -147,7 +131,7 @@ st.subheader("Existing projects")
 try:
     conn = sqlite3.connect(DB.db_name)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, title, caption, pdf_url, status, video_path FROM projects ORDER BY id ASC;")
+    cursor.execute("SELECT id, title, caption, pdf_url, status, video_path FROM projects ORDER BY id DESC;")
     projects = cursor.fetchall()
 finally:
     conn.close()
@@ -155,34 +139,115 @@ finally:
 if not projects:
     st.info("No projects found.")
 else:
-    # Build a compact HTML table.
-
-    # Create a simple selector to pick a project for editing. Stores selection in session_state.
+    # Build select options
     project_options = [f"{p[0]} - {p[1]}" for p in projects]
+    id_to_option = {p[0]: f"{p[0]} - {p[1]}" for p in projects}
+
+    # Initialize persistent selected_project_id only once
+    if "selected_project_id" not in st.session_state:
+        inprog_pid = next((p[0] for p in projects if p[4] == DialougeStatus.INPROGRESS), None)
+        st.session_state["selected_project_id"] = inprog_pid if inprog_pid is not None else projects[0][0]
+
+    # Sync only on first load or if the previously selected project vanished
+    expected_option = id_to_option.get(st.session_state["selected_project_id"])  # may be None if project removed
+    if "proj_select" not in st.session_state:
+        # first load: set the select widget value
+        if expected_option is not None:
+            st.session_state["proj_select"] = expected_option
+    else:
+        # If selected project was removed, fall back to first option
+        if expected_option is None:
+            fallback_id = projects[0][0]
+            st.session_state["selected_project_id"] = fallback_id
+            st.session_state["proj_select"] = id_to_option.get(fallback_id, project_options[0])
+
+    # Render selectbox; user changes update proj_select -> we parse and update selected_project_id
     selected_option = st.selectbox("Select project to edit", project_options, key="proj_select")
     try:
-        selected_project_id = int(selected_option.split(" - ")[0])
-        st.session_state["selected_project_id"] = selected_project_id
+        new_selected_id = int(selected_option.split(" - ")[0])
+        st.session_state["selected_project_id"] = new_selected_id
     except Exception:
-        selected_project_id = None
+        pass
+    selected_project_id = st.session_state.get("selected_project_id")
 
-    open_col1, open_col2 = st.columns([1, 4])
+    open_col1, = st.columns([5])
     with open_col1:
-        if st.button("Open Dialogues page for selected project"):
-            if selected_project_id:
-                # Set query param so the Dialouge page can pick this project when opened
-                try:
-                        st.query_params = {"project_id": [str(selected_project_id)]}
-                except Exception:
-                    pass
-                # Provide a clickable link to the Dialouge page (some Streamlit versions do not support programmatic rerun/navigation)
-                link = f"/?page=Dialouge&project_id={selected_project_id}"
-                st.markdown(f"[Open Dialouges for selected project]({link})", unsafe_allow_html=True)
-            else:
-                st.warning("No project selected.")
-    with open_col2:
         if selected_project_id:
             st.markdown(f"Selected project ID: **{selected_project_id}** — You can now click the 'Dialouge' page in the sidebar to view its dialogues.")
+
+    # Orchestration controls
+    orch_col1, orch_col2 = st.columns([2,4])
+    with orch_col1:
+        if st.button("Process Any Pending Project"):
+            result = process_project(project_id=None)
+            st.session_state['last_orch_result'] = result
+            st.toast("Global orchestration pass complete", icon="🔄")
+    with orch_col2:
+        if 'last_orch_result' in st.session_state:
+            res = st.session_state['last_orch_result']
+            st.markdown("**Last orchestration result:**")
+            st.json(res)
+
+    # --- Progress Polling & Auto Processing ---
+    st.markdown("---")
+    st.subheader("Processing Progress")
+
+    def project_progress(pid: int):
+        dbp = DBOperation()
+        all_rows = dbp.get_all_dialogues_by_project(pid) or []
+        total = len(all_rows)
+        completed = len(dbp.get_dialogues_by_status(DialougeStatus.COMPLETED, pid)) if total else 0
+        failed = len(dbp.get_dialogues_by_status(DialougeStatus.FAILED, pid)) if total else 0
+        inprogress = len(dbp.get_dialogues_by_status(DialougeStatus.INPROGRESS, pid)) if total else 0
+        return {
+            'total': total,
+            'completed': completed,
+            'failed': failed,
+            'inprogress': inprogress,
+            'remaining': max(total - completed - failed - inprogress, 0)
+        }
+
+    if 'auto_processing' not in st.session_state:
+        st.session_state['auto_processing'] = False
+
+    prog_col1, prog_col2, prog_col3 = st.columns([2,2,6])
+    with prog_col1:
+        if not st.session_state['auto_processing']:
+            if st.button("Start Auto Process", disabled=not selected_project_id):
+                if selected_project_id:
+                    st.session_state['auto_processing'] = True
+                    st.session_state['auto_process_project'] = selected_project_id
+                    safe_rerun()
+        else:
+            if st.button("Stop Auto Process"):
+                st.session_state['auto_processing'] = False
+                safe_rerun()
+    with prog_col2:
+        if st.button("Refresh Progress"):
+            safe_rerun()
+    with prog_col3:
+        if selected_project_id:
+            stats = project_progress(selected_project_id)
+            if stats['total']:
+                frac = stats['completed'] / stats['total'] if stats['total'] else 0
+                st.progress(frac, text=f"Completed {stats['completed']}/{stats['total']} | Failed {stats['failed']} | InProgress {stats['inprogress']}")
+            else:
+                st.info("No dialogues yet for this project.")
+
+    # Auto loop execution (single pass per rerun)
+    if st.session_state.get('auto_processing'):
+        target_pid = st.session_state.get('auto_process_project')
+        if target_pid:
+            result = process_project(project_id=target_pid)
+            st.session_state['last_orch_result'] = result
+            # Stop automatically if completed
+            stats = project_progress(target_pid)
+            if stats['total'] and stats['completed'] == stats['total']:
+                st.session_state['auto_processing'] = False
+                st.toast("Project processing completed", icon="✅")
+            else:
+                # Inject an autorefresh for next polling pass
+                st.autorefresh(interval=5000, key='auto_proc_refresh')
 
     # Render a compact row layout with an Action button per project
     st.markdown("""
@@ -209,16 +274,15 @@ else:
     from upload_to_instagram import main as upload_main
 
     def start_generation_for_project(pid: int):
-        # mark project INPROGRESS immediately
+        # Mark INPROGRESS then call orchestrator once (threaded)
         db_local = DBOperation()
         db_local.update_project_status(pid, DialougeStatus.INPROGRESS)
-
         def worker():
             try:
-                run_flow()
+                result = process_project(project_id=pid)
+                st.session_state['last_orch_result'] = result
             except Exception as e:
-                print(f"Error while running flow for project {pid}: {e}")
-
+                print(f"Error while processing project {pid}: {e}")
         threading.Thread(target=worker, daemon=True).start()
 
     def upload_project(pid: int):
@@ -230,8 +294,37 @@ else:
 
         threading.Thread(target=worker, daemon=True).start()
 
-    # Prefetch dialogue counts for all projects in one query to avoid per-row DB hits
-    project_ids = [p[0] for p in projects]
+    # --- Pagination (client-side) ---
+    PAGE_SIZE = 7
+    total_projects = len(projects)
+    total_pages = max(math.ceil(total_projects / PAGE_SIZE), 1)
+    if 'project_page' not in st.session_state:
+        st.session_state['project_page'] = 0
+    # Clamp page if out of range (e.g., after deletions)
+    if st.session_state['project_page'] > total_pages - 1:
+        st.session_state['project_page'] = total_pages - 1
+    page = st.session_state['project_page']
+    start_idx = page * PAGE_SIZE
+    end_idx = start_idx + PAGE_SIZE
+    visible_projects = projects[start_idx:end_idx]
+
+    pag_col_left_buttons, pag_col_next, pag_col_info = st.columns([1,1,3])
+    with pag_col_left_buttons:
+        if st.button('First', disabled=page == 0):
+            st.session_state['project_page'] = 0
+            safe_rerun()
+        if st.button('Prev', disabled=page == 0):
+            st.session_state['project_page'] -= 1
+            safe_rerun()
+    with pag_col_next:
+        if st.button('Next', disabled=page >= total_pages - 1):
+            st.session_state['project_page'] += 1
+            safe_rerun()
+    with pag_col_info:
+        st.markdown(f"Page **{page+1}** / **{total_pages}**  ")
+
+    # Prefetch dialogue counts only for visible projects to reduce queries
+    project_ids = [p[0] for p in visible_projects]
     counts_map = {}
     if project_ids:
         try:
@@ -240,7 +333,8 @@ else:
             q = (
                 "SELECT project_id, COUNT(*) as total, "
                 "SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as completed "
-                "FROM dialouge_stage WHERE project_id IN ({ids}) GROUP BY project_id;"
+                "FROM dialouge_stage WHERE project_id IN ({ids}) "
+                "GROUP BY project_id;"
             )
             ids = ",".join([str(int(x)) for x in project_ids])
             q = q.replace("{ids}", ids)
@@ -258,8 +352,8 @@ else:
                 pass
 
     # Rows
-    for p in projects:
-        pid, ptitle, pcaption, ppdf, pstatus, _ = p
+    for p in visible_projects:
+        pid, ptitle, pcaption, ppdf, pstatus, video_path = p
         c0, c1, c2, c3, c4, c5 = st.columns([1, 4, 8, 2, 2, 1])
         c0.write(pid)
         c1.write(ptitle)
@@ -270,11 +364,21 @@ else:
 
         # Determine action button appearance and behavior
         action_clicked = False
-        if pstatus == DialougeStatus.NEW or pstatus == DialougeStatus.INPROGRESS:
+        completed, total = counts_map.get(pid, (0, 0))
+        all_dialogues_done = total > 0 and completed == total
+        video_missing = not video_path or str(video_path).strip() == ""
+
+        # If all dialogues are complete but video not generated yet -> show download icon
+        if all_dialogues_done and video_missing and pstatus != DialougeStatus.COMPLETED:
+            if c4.button("📥", key=f"vid_{pid}"):
+                start_generation_for_project(pid)
+                action_clicked = True
+                st.info(f"Generating video for project {pid} (dialogues already complete)")
+        elif pstatus == DialougeStatus.NEW or pstatus == DialougeStatus.INPROGRESS:
             if c4.button("🔄", key=f"gen_{pid}"):
                 start_generation_for_project(pid)
                 action_clicked = True
-                st.success(f"Started generation for project {pid}")
+                st.success(f"Started processing for project {pid}")
         elif pstatus == DialougeStatus.COMPLETED:
             if c4.button("➡️", key=f"upload_{pid}"):
                 upload_project(pid)
@@ -283,8 +387,7 @@ else:
         else:
             # Other statuses show a disabled button for visibility
             c4.write(pstatus)
-        # Progress column: show completed/total using prefetched counts
-        completed, total = counts_map.get(pid, (0, 0))
+        # Progress column: show completed/total using prefetched counts (already retrieved)
         if total > 0:
             c5.markdown(f"**{completed}/{total}**")
             try:

@@ -3,12 +3,15 @@ from utils import DialougeStatus
 
 class DBOperation:
     def __init__(self, db_name="stewie_database.db"):
+        # Properly indented initializer (previous indentation was broken)
         self.db_name = db_name
         # Initialize tables
         self.create_projects_table()
         self.create_dialouge_stage_table()
         # Ensure project_id column exists
         self._ensure_project_id_column()
+        # Ensure dialogue unique constraint includes project_id (migration if needed)
+        self._ensure_dialogue_uniqueness()
 
     def connect(self):
         return sqlite3.connect(self.db_name)
@@ -34,6 +37,21 @@ class DBOperation:
             print(f"SQLite error during projects table creation: {e}")
         finally:
             conn.close()
+    def get_projects(self):
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, title, caption, pdf_url, status, video_path FROM projects ORDER BY id ASC;")
+            rows = cursor.fetchall()
+            return rows
+        except sqlite3.Error as e:
+            print(f"SQLite error during get_projects: {e}")
+            return []
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
     def _ensure_project_id_column(self):
         try:
@@ -79,7 +97,7 @@ class DBOperation:
             audio TEXT,
             status TEXT DEFAULT 'NEW',
             project_id INTEGER,
-            UNIQUE(sentence, character)
+            UNIQUE(sentence, character, project_id)
         );
         """
         try:
@@ -92,6 +110,71 @@ class DBOperation:
             print(f"SQLite error during table creation: {e}")
         finally:
             conn.close()
+
+    def _ensure_dialogue_uniqueness(self):
+        """Migrate UNIQUE(sentence, character) to UNIQUE(sentence, character, project_id) if not already.
+
+        SQLite doesn't support altering constraints, so we recreate the table when needed.
+        Safe to run repeatedly; it will no-op if the correct unique index already exists.
+        """
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            # Inspect existing indexes
+            cursor.execute("PRAGMA index_list(dialouge_stage);")
+            indexes = cursor.fetchall()  # (seq, name, unique, origin, partial)
+            has_triplet = False
+            for _, idx_name, unique, *_ in indexes:
+                if not unique:
+                    continue
+                cursor.execute(f"PRAGMA index_info({idx_name});")
+                cols = [r[2] for r in cursor.fetchall()]
+                if cols == ['sentence', 'character', 'project_id']:
+                    has_triplet = True
+                    break
+            if has_triplet:
+                return  # Already migrated
+
+            # Detect legacy constraint by testing duplicate insert across projects
+            # If legacy, recreate table with proper constraint
+            # Fetch schema to confirm legacy UNIQUE doesn't have project_id
+            cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='dialouge_stage';")
+            row = cursor.fetchone()
+            if row and 'UNIQUE(sentence, character)' in row[0] and 'project_id' not in row[0].split('UNIQUE')[1]:
+                print("Migrating dialouge_stage uniqueness to include project_id...")
+                cursor.execute("BEGIN TRANSACTION;")
+                cursor.execute("""
+                    CREATE TABLE dialouge_stage_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        sentence TEXT NOT NULL,
+                        character TEXT NOT NULL,
+                        image TEXT,
+                        image_search TEXT,
+                        audio TEXT,
+                        status TEXT DEFAULT 'NEW',
+                        project_id INTEGER,
+                        UNIQUE(sentence, character, project_id)
+                    );
+                """)
+                cursor.execute("""
+                    INSERT OR IGNORE INTO dialouge_stage_new (id, sentence, character, image, image_search, audio, status, project_id)
+                    SELECT id, sentence, character, image, image_search, audio, status, project_id FROM dialouge_stage;
+                """)
+                cursor.execute("DROP TABLE dialouge_stage;")
+                cursor.execute("ALTER TABLE dialouge_stage_new RENAME TO dialouge_stage;")
+                cursor.execute("COMMIT;")
+                print("Migration complete: UNIQUE(sentence, character, project_id) now enforced.")
+        except sqlite3.Error as e:
+            try:
+                cursor.execute("ROLLBACK;")
+            except Exception:
+                pass
+            print(f"SQLite error during uniqueness migration: {e}")
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
     def update_audio_path(self, dialogue_id, audio_path):
         """Update the audio path for a given dialogue ID."""

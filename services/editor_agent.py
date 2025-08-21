@@ -1,6 +1,7 @@
 import os
 import warnings
 import random
+import logging
 warnings.filterwarnings("ignore")
 os.environ["IMAGEMAGICK_BINARY"] = "/usr/bin/convert"
 from moviepy.editor import (
@@ -42,6 +43,14 @@ class DynamicVideoEditor:
             self.dialogue_data = db_handler.get_ready_assets() or []
         else:
             self.dialogue_data = dialogue_data or []
+
+        # Validate audio paths – do NOT skip; raise if any missing
+        missing_audio = [d for d in self.dialogue_data if not d.get('audio') or not str(d.get('audio')).strip()]
+        if missing_audio:
+            raise ValueError(
+                "Cannot generate video. Dialogue(s) missing audio path: "
+                + ", ".join(str(d.get('id')) for d in missing_audio)
+            )
 
 
         # Check that all audio assets are marked as COMPLETE
@@ -155,53 +164,58 @@ class DynamicVideoEditor:
         for item in self.dialogue_data:
             # Use the actual audio path from the DB
             audio_path = item.get('audio')
-            image_path = f"image_assests/{item['image']}"
+            image_file = item.get('image') or ''
+            image_path = f"image_assests/{image_file}" if image_file else None
 
             subtitle_text = item["sentence"]
             search_term = item.get("image_search", "")
 
             # Load and position audio
+            if not audio_path:
+                raise ValueError(f"Dialogue id {item.get('id')} has no audio path.")
+            if not os.path.exists(audio_path):
+                raise FileNotFoundError(f"Audio file for dialogue id {item.get('id')} not found at '{audio_path}'.")
             audio = AudioFileClip(audio_path).set_start(self.current_start)
             self.audio_clips.append(audio)
 
             # Position character image
-            char_position = "left" if "peter" in image_path.lower() else "right"
-            if image_path:
-                char_image = (
-                    ImageClip(image_path)
-                    .set_start(self.current_start)
-                    .set_duration(audio.duration)
-                    .resize(height=500)
-                    
-                )
-
-                y_position = max(0, self.video.h - 500 - 50)
-
- 
-                x_position = 50 if char_position == "left" else max(0, self.video.w - char_image.w - 50)
-
-  
-                char_image = char_image.set_position((x_position, y_position))
-                self.image_clips.append(char_image)
+            if image_path and os.path.exists(image_path):
+                char_position = "left" if "peter" in image_path.lower() else "right"
+                try:
+                    char_image = (
+                        ImageClip(image_path)
+                        .set_start(self.current_start)
+                        .set_duration(audio.duration)
+                        .resize(height=500)
+                    )
+                    y_position = max(0, self.video.h - 500 - 50)
+                    x_position = 50 if char_position == "left" else max(0, self.video.w - char_image.w - 50)
+                    char_image = char_image.set_position((x_position, y_position))
+                    self.image_clips.append(char_image)
+                except Exception as e:
+                    logging.warning(f"Failed to load character image '{image_path}' for dialogue id {item.get('id')}: {e}")
+            elif image_path:
+                logging.warning(f"Character image path does not exist: {image_path}")
 
             # Subtitle
             subtitle_clips = self.add_word_by_word_subtitles(subtitle_text, self.current_start, audio.duration)
             self.subtitle_clips.extend(subtitle_clips)
 
             # Optional: Related image search
-            try:
-                relevant_image = self.search_image(search_term)
-                if relevant_image:
-                    searched_image = (
-                        ImageClip(relevant_image)
-                        .set_start(self.current_start)
-                        .set_duration(audio.duration)
-                        .resize(height=350)
-                        .set_position(("center", 300))
-                    )
-                    self.image_clips.append(searched_image)
-            except Exception as e:
-                print(f"Image search failed: {e}")
+            if search_term:
+                try:
+                    relevant_image = self.search_image(search_term)
+                    if relevant_image:
+                        searched_image = (
+                            ImageClip(relevant_image)
+                            .set_start(self.current_start)
+                            .set_duration(audio.duration)
+                            .resize(height=350)
+                            .set_position(("center", 300))
+                        )
+                        self.image_clips.append(searched_image)
+                except Exception as e:
+                    logging.warning(f"Image search failed for term '{search_term}': {e}")
 
             self.current_start += audio.duration + 0.5
 
