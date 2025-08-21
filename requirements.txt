@@ -11,3 +11,4 @@ Google-Images-Search
 google-genai
 requests
 streamlit
+Pillow

@@ -52,7 +52,8 @@ else:
 
         voice_gen = VoiceGenerator()
         for row in rows:
-            did, sentence, character, image, image_search, audio, status = row
+            # row: id, sentence, character, image, image_search, audio, status, character_id
+            did, sentence, character, image, image_search, audio, status, character_id = row
             c0, c1, c2, c3, c4, c5 = st.columns([1, 2, 6, 3, 2, 2])
             c0.write(did)
             c1.write(character or "")
@@ -69,7 +70,14 @@ else:
                 with st.spinner(f"Regenerating audio for dialogue {did}..."):
                     try:
                         speaker = character or 'peter'
-                        audio_path = voice_gen.generate_audio_from_sentence(sentence, speaker, f"regen_{did}", db_handler=db, dialogue_id=did)
+                        audio_path = voice_gen.generate_audio_from_sentence(
+                            sentence,
+                            speaker,
+                            f"regen_{did}",
+                            db_handler=db,
+                            dialogue_id=did,
+                            character_id=character_id,
+                        )
                         if audio_path:
                             st.success(f"Audio generated: {audio_path}")
                         else:

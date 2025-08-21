@@ -3,6 +3,7 @@ import requests
 from typing import List, Dict, Any
 from db_handler import DBOperation, DialougeStatus
 from services.dialouge_creator import fetch_pdf_from_url, generate_from_pdf_content
+from services.character_service import CharacterService
 from utils import get_datetime_str
 
 # Custom Exceptions
@@ -35,25 +36,29 @@ def validate_dialogues(dialogues: List[Dict[str, Any]]) -> None:
             raise ProjectValidationError(f"Dialogue text exceeds 100 chars at index {idx}")
 
 
-def add_follow_for_more_dialogue(db: DBOperation, project_id: int, primary_character: str):
-    # Choose character for CTA; default to provided primary
-    char = "Stewie" if primary_character.lower().startswith("stew") else "Peter"
-    follow_for_more_dialogue = "If you wanna see more of this genius stuff, follow Professor Peter Griffin. Do it. Do it now." if char == "Peter" else "I'll be following your future transmissions... consider yourself... followed."
+def add_follow_for_more_dialogue(db: DBOperation, project_id: int, primary_character_id: int):
+    cs = CharacterService()
+    ch = cs.get(primary_character_id) if primary_character_id else None
+    if not ch:
+        # fallback to Peter
+        fallback = cs.get_character_by_name_like('peter') if hasattr(cs.db, 'get_character_by_name_like') else None
+        primary_character_id = fallback[0] if fallback else None
+        ch = cs.get(primary_character_id) if primary_character_id else None
+    if not ch:
+        # last resort defaults
+        ch = {"name": "Peter Griffin", "image_path": "peter.png", "follow_line": "Follow for more.", "follow_line_audio": ""}
     dialogues = [{
-        "dialogue": follow_for_more_dialogue,
-        "character": char,
-        "image": f"{char.lower()}.png",
+        "dialogue": ch.get("follow_line") or "Follow for more.",
+        "character": ch.get("name"),
+        "character_id": ch.get("id"),
+        "image": ch.get("image_path", ""),
         "image_search": ""
     }]
     db.add_or_update_dialogues(dialogues, project_id)
     # Update audio path + mark completed
     last_id = db.get_dialouge_id(project_id)
     if last_id:
-        audio_path = (
-            "audio_assests/static/stewie_follow_for_more.mp3"
-            if char.lower().startswith("stew")
-            else "audio_assests/static/peter_follow_for_more.mp3"
-        )
+        audio_path = ch.get("follow_line_audio") or ""
         db.update_audio_path(last_id, audio_path)
         db.update_status(last_id, DialougeStatus.COMPLETED)
 
@@ -66,11 +71,15 @@ def fetch_pdf_bytes(pdf_url: str) -> bytes:
     return pdf_bytes
 
 
-def generate_dialogues_from_pdf(pdf_bytes: bytes, max_retries: int = 3, delay: int = 3) -> List[Dict[str, Any]]:
+def generate_dialogues_from_pdf(pdf_bytes: bytes, speaker1_id: int, speaker2_id: int, max_retries: int = 3, delay: int = 3) -> List[Dict[str, Any]]:
     last_error = None
+    cs = CharacterService()
+    s1 = cs.get(speaker1_id) if speaker1_id else None
+    s2 = cs.get(speaker2_id) if speaker2_id else None
+    speaker_ctx = {"speaker1": s1, "speaker2": s2} if s1 and s2 else None
     for attempt in range(1, max_retries + 1):
         try:
-            dialogue_data = generate_from_pdf_content(pdf_bytes)
+            dialogue_data = generate_from_pdf_content(pdf_bytes, speaker_context=speaker_ctx)
             if not dialogue_data or "dialogue_scenes" not in dialogue_data:
                 raise DialogueGenerationError("Model response missing 'dialogue_scenes'")
             dialogues = dialogue_data["dialogue_scenes"]
@@ -82,15 +91,15 @@ def generate_dialogues_from_pdf(pdf_bytes: bytes, max_retries: int = 3, delay: i
     raise DialogueGenerationError(f"Dialogue generation failed after {max_retries} attempts: {last_error}")
 
 
-def create_project_with_dialogues(db: DBOperation, project_name: str, caption: str, pdf_url: str, character: str) -> Dict[str, Any]:
+def create_project_with_dialogues(db: DBOperation, project_name: str, caption: str, pdf_url: str, speaker1_id: int, speaker2_id: int) -> Dict[str, Any]:
     if project_exists(db, project_name):
         raise ProjectExistsError(f"Project '{project_name}' already exists")
 
     pdf_bytes = fetch_pdf_bytes(pdf_url)
-    dialogues = generate_dialogues_from_pdf(pdf_bytes)
+    dialogues = generate_dialogues_from_pdf(pdf_bytes, speaker1_id, speaker2_id)
 
     # Insert project first
-    db.create_project(project_name, caption, pdf_url)
+    db.create_project(project_name, caption, pdf_url, speaker1_id=speaker1_id, speaker2_id=speaker2_id)
     # Retrieve project id
     projects = db.get_projects()
     project_id = None
@@ -104,7 +113,8 @@ def create_project_with_dialogues(db: DBOperation, project_name: str, caption: s
     # Add dialogues
     db.add_or_update_dialogues(dialogues, project_id)
     # Add CTA line with audio
-    add_follow_for_more_dialogue(db, project_id, character)
+    # Add CTA based on speaker1 (primary)
+    add_follow_for_more_dialogue(db, project_id, speaker1_id)
 
     total_count = len(db.get_all_dialogues_by_project(project_id))
     return {

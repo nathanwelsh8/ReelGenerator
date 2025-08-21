@@ -13,12 +13,12 @@ from pydub.silence import split_on_silence
 
 from services.proxy_manager import ProxyHttpClient
 from services.logger import get_logger
+from services.character_service import CharacterService
 from logging import Logger
 import shutil
 
 class VoiceGenerator:
-    PETER_URL = "https://www.tryparrotai.com/ai-voice/peter-griffin"
-    STEWIE_URL = "https://www.tryparrotai.com/ai-voice/stewie-griffin"
+    BASE_PARROT_URL = "https://www.tryparrotai.com/ai-voice/"
 
     def __init__(self):
         self.logger: Logger = get_logger()
@@ -26,8 +26,8 @@ class VoiceGenerator:
         self.driver_factory = SeleniumDriverFactory(self.logger, self.proxy_manager)
         self.output_dir = "audio_assests"
         os.makedirs(self.output_dir, exist_ok=True)
-
         self.max_retries = 3
+        self.character_service = CharacterService()
 
     def __del__(self):
         pass  # No persistent driver to clean up
@@ -97,7 +97,23 @@ class VoiceGenerator:
             self.logger.error(f"Error removing silence from audio: {e}", exc_info=True)
             raise
 
-    def generate_audio_from_sentence(self, sentence, speaker, index, db_handler=None, dialogue_id=None):
+    def _resolve_parrot_url(self, speaker: str, character_id: int | None = None) -> str:
+        """Resolve Parrot AI page URL from character_id when provided, else by speaker name heuristics."""
+        if character_id:
+            ch = self.character_service.get(character_id)
+            if ch and ch.get('parrot_ai_path'):
+                return f"{self.BASE_PARROT_URL}{ch['parrot_ai_path']}"
+        # fallback by name fragment
+        if speaker:
+            ch = self.character_service.db.get_character_by_name_like(speaker)
+            if ch:
+                ch_full = self.character_service.get(ch[0])
+                if ch_full and ch_full.get('parrot_ai_path'):
+                    return f"{self.BASE_PARROT_URL}{ch_full['parrot_ai_path']}"
+        # ultimate fallback to Peter page to avoid crash
+        return f"{self.BASE_PARROT_URL}peter-griffin"
+
+    def generate_audio_from_sentence(self, sentence, speaker, index, db_handler=None, dialogue_id=None, character_id: int | None = None):
         # Clean debug/ directory at the start of each run
         debug_dir = "debug"
         if not os.path.exists(debug_dir):
@@ -111,7 +127,30 @@ class VoiceGenerator:
                 except Exception as e:
                     self.logger.warning(f"Failed to delete debug file {fp}: {e}")
         """Generate audio from sentence using the specified speaker. Uses a new proxied Selenium driver for each call. Retries up to 3 times on error, waits 5 minutes between retries.
-        If db_handler and dialogue_id are provided, update DB to COMPLETED after audio is saved."""
+        If db_handler and dialogue_id are provided, update DB to COMPLETED after audio is saved.
+
+        If environment variable AUDIO_DRY_RUN=1, skip browser/network and emit a small silent MP3 file instead.
+        """
+        # DRY RUN: emit silent MP3s for testing without network/Selenium
+        try:
+            if os.environ.get("AUDIO_DRY_RUN") == "1":
+                page_url = self._resolve_parrot_url(speaker, character_id=character_id)
+                slug = page_url.rstrip('/').split('/')[-1]
+                mp3_name = f"{slug}_audio_{index}.mp3"
+                audio_path = os.path.join(self.output_dir, mp3_name)
+                # 1 second of silence
+                AudioSegment.silent(duration=1000).export(audio_path, format="mp3")
+                if db_handler is not None and dialogue_id is not None:
+                    try:
+                        db_handler.update_audio_path(dialogue_id, audio_path)
+                        from utils import DialougeStatus
+                        db_handler.update_status(dialogue_id, DialougeStatus.COMPLETED)
+                    except Exception as db_e:
+                        self.logger.warning(f"DB update failed (dry run) for dialogue {dialogue_id}: {db_e}")
+                return audio_path
+        except Exception as dry_e:
+            # Fall through to real flow on any dry-run error
+            self.logger.warning(f"Dry run path failed, falling back to live generation: {dry_e}")
         audio_path = None
         for attempt in range(self.max_retries):
             # Rotate browser user data directory for each session
@@ -120,8 +159,9 @@ class VoiceGenerator:
                 shutil.rmtree(user_data_dir)
             driver = self.driver_factory.get_driver(user_data_dir=user_data_dir) if hasattr(self.driver_factory, 'get_driver') and 'user_data_dir' in self.driver_factory.get_driver.__code__.co_varnames else self.driver_factory.get_driver()
             try:
-                page_url = self.PETER_URL if speaker.lower() == "peter" else self.STEWIE_URL
-                filename_prefix = speaker.lower()
+                page_url = self._resolve_parrot_url(speaker, character_id=character_id)
+                slug = page_url.rstrip('/').split('/')[-1]
+                filename_prefix = slug
 
 
                 # --- Advanced browser fingerprint randomization and storage clearing ---

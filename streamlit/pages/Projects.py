@@ -16,6 +16,14 @@ from db_handler import DBOperation
 from utils import DialougeStatus
 import importlib.util
 import types
+# Load characters for selection
+# Load characters for selection (dynamic import for robustness)
+char_service_file = os.path.join(ROOT_DIR, 'services', 'character_service.py')
+cs_spec = importlib.util.spec_from_file_location('character_service', char_service_file)
+cs_module = importlib.util.module_from_spec(cs_spec) if cs_spec and cs_spec.loader else types.ModuleType('character_service')
+if cs_spec and cs_spec.loader:
+    cs_spec.loader.exec_module(cs_module)  # type: ignore
+CharacterService = getattr(cs_module, 'CharacterService')
 # Dynamically load project_service to avoid path ambiguity in Streamlit runtime
 service_file = os.path.join(ROOT_DIR, 'services', 'project_service.py')
 spec = importlib.util.spec_from_file_location('project_service', service_file)
@@ -88,7 +96,20 @@ with st.form(key="add_project_form"):
     title = st.text_input("Title")
     caption = st.text_area("Caption")
     pdf_path = st.text_input("PDF path or URL")
-    character = st.selectbox("Primary Character", ["Stewie", "Peter"], index=0)
+    # Speaker selection from characters table (robust to failures so submit button always renders)
+    try:
+        cs = CharacterService()
+        chars = cs.list_active_characters()
+    except Exception as e:
+        st.warning(f"Could not load characters: {e}")
+        chars = []
+    char_options = {f"{c['name']} ({c['id']})": c['id'] for c in (chars or [])}
+    opt_list = list(char_options.keys()) if char_options else ["Peter Griffin (1)", "Stewie Griffin (2)"]
+    s1_label = st.selectbox("Speaker 1", opt_list, index=0 if opt_list else 0)
+    s2_label = st.selectbox("Speaker 2", opt_list, index=1 if len(opt_list) > 1 else 0)
+    # Prevent selecting the same character twice
+    if opt_list and s1_label == s2_label:
+        st.info("Speaker 1 and Speaker 2 are the same. Consider choosing two distinct characters.")
     submit = st.form_submit_button("Submit")
 
     if submit:
@@ -99,12 +120,16 @@ with st.form(key="add_project_form"):
         else:
             with st.spinner("Processing project: this may take a moment..."):
                 try:
+                    # Resolve selected IDs
+                    speaker1_id = char_options.get(s1_label)
+                    speaker2_id = char_options.get(s2_label)
                     result = create_project_with_dialogues(
                         db=DB,
                         project_name=title,
                         caption=caption,
                         pdf_url=pdf_path,
-                        character=character,
+                        speaker1_id=speaker1_id,
+                        speaker2_id=speaker2_id,
                     )
                     st.success(f"Project '{title}' created (ID {result['project_id']}) with {result['dialogue_count']} dialogues.")
                 except ProjectExistsError as e:
@@ -246,8 +271,12 @@ else:
                 st.session_state['auto_processing'] = False
                 st.toast("Project processing completed", icon="✅")
             else:
-                # Inject an autorefresh for next polling pass
-                st.autorefresh(interval=5000, key='auto_proc_refresh')
+                # Inject an auto-refresh for next polling pass
+                if hasattr(st, 'autorefresh'):
+                    st.autorefresh(interval=5000, key='auto_proc_refresh')
+                else:
+                    # Fallback for Streamlit versions without autorefresh
+                    st.markdown("<meta http-equiv='refresh' content='5'>", unsafe_allow_html=True)
 
     # Render a compact row layout with an Action button per project
     st.markdown("""

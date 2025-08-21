@@ -8,7 +8,11 @@ from services.scrap_audio import VoiceGenerator
 from utils import DialougeStatus
 
 def _process_single(row, db: DBOperation, voice_gen: VoiceGenerator):
-    dialogue_id, sentence, character, *_ = row
+    # row: id, sentence, character, image, image_search, audio, status, character_id
+    dialogue_id = row[0]
+    sentence = row[1]
+    character = row[2]
+    character_id = row[7] if len(row) > 7 else None
     try:
         db.update_status(dialogue_id, DialougeStatus.INPROGRESS)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
@@ -18,6 +22,7 @@ def _process_single(row, db: DBOperation, voice_gen: VoiceGenerator):
             f"{dialogue_id}_{timestamp}",
             db_handler=db,
             dialogue_id=dialogue_id,
+            character_id=character_id,
         )
         if path:
             db.update_status(dialogue_id, DialougeStatus.COMPLETED)
