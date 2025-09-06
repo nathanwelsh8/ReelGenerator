@@ -10,5 +10,9 @@ instagrapi
 Google-Images-Search
 google-genai
 requests
-streamlit
 Pillow
+fastapi
+uvicorn
+pika
+python-jose[cryptography]
+google-auth

@@ -1,5 +1,10 @@
 import sqlite3
+import time
 from utils import DialougeStatus
+
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 class DBOperation:
     def __init__(self, db_name="stewie_database.db"):
@@ -13,6 +18,8 @@ class DBOperation:
         self._ensure_character_name_unique_index()
         self._ensure_project_speaker_columns()
         self._ensure_dialouge_character_id_column()
+        # Auth related
+        self._ensure_users_table()
         # Seed baseline characters
         self.seed_characters()
         # Legacy support / prior migrations
@@ -20,7 +27,15 @@ class DBOperation:
         self._ensure_dialogue_uniqueness()
 
     def connect(self):
-        return sqlite3.connect(self.db_name)
+        conn = sqlite3.connect(self.db_name, timeout=30, check_same_thread=False)
+        try:
+            # Improve concurrency for readers/writers
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute("PRAGMA busy_timeout=5000;")  # milliseconds
+            conn.execute("PRAGMA synchronous=NORMAL;")
+        except sqlite3.Error:
+            pass
+        return conn
 
     def create_projects_table(self):
         query = """
@@ -38,11 +53,14 @@ class DBOperation:
             cursor = conn.cursor()
             cursor.execute(query)
             conn.commit()
-            print("Table 'projects' is ready.")
+            logger.info("Table 'projects' is ready.")
         except sqlite3.Error as e:
-            print(f"SQLite error during projects table creation: {e}")
+            logger.critical(f"SQLite error during projects table creation: {e}")
         finally:
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
     
     # --- New multi-character schema helpers ---
     def create_characters_table(self):
@@ -63,7 +81,7 @@ class DBOperation:
             cur.execute(query)
             conn.commit()
         except sqlite3.Error as e:
-            print(f"SQLite error creating characters table: {e}")
+            logger.critical(f"SQLite error creating characters table: {e}")
         finally:
             try:
                 conn.close()
@@ -92,7 +110,7 @@ class DBOperation:
             if stmts:
                 conn.commit()
         except sqlite3.Error as e:
-            print(f"SQLite error ensuring follow columns: {e}")
+            logger.critical(f"SQLite error ensuring follow columns: {e}")
         finally:
             try:
                 conn.close()
@@ -109,7 +127,7 @@ class DBOperation:
             conn.commit()
         except sqlite3.Error as e:
             # If duplicates already exist, this will fail; log and continue
-            print(f"SQLite error ensuring unique name index: {e}")
+            logger.warning(f"SQLite error ensuring unique name index: {e}")
         finally:
             try:
                 conn.close()
@@ -132,11 +150,11 @@ class DBOperation:
                 try:
                     cur.execute(stmt)
                 except sqlite3.Error as ie:
-                    print(f"SQLite error adding speaker column: {ie}")
+                    logger.critical(f"SQLite error adding speaker column: {ie}")
             if alters:
                 conn.commit()
         except sqlite3.Error as e:
-            print(f"SQLite error ensuring speaker columns: {e}")
+            logger.critical(f"SQLite error ensuring speaker columns: {e}")
         finally:
             try:
                 conn.close()
@@ -155,9 +173,9 @@ class DBOperation:
                     cur.execute("ALTER TABLE dialouge_stage ADD COLUMN character_id INTEGER;")
                     conn.commit()
                 except sqlite3.Error as ie:
-                    print(f"SQLite error adding character_id: {ie}")
+                    logger.critical(f"SQLite error adding character_id: {ie}")
         except sqlite3.Error as e:
-            print(f"SQLite error ensuring character_id column: {e}")
+            logger.critical(f"SQLite error ensuring character_id column: {e}")
         finally:
             try:
                 conn.close()
@@ -198,15 +216,77 @@ class DBOperation:
                         (s.get("follow_line"), s.get("follow_line_audio"), s["name"]) 
                     )
                 except sqlite3.Error as ie:
-                    print(f"SQLite error seeding character {s['name']}: {ie}")
+                    logger.error(f"SQLite error seeding character {s['name']}: {ie}")
             conn.commit()
         except sqlite3.Error as e:
-            print(f"SQLite error during character seeding: {e}")
+            logger.error(f"SQLite error during character seeding: {e}")
         finally:
             try:
                 conn.close()
             except Exception:
                 pass
+
+    # --- Users / Auth ---
+    def _ensure_users_table(self):
+        """Create users table for Google-authenticated users if missing."""
+        query = """
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            google_sub TEXT NOT NULL UNIQUE,
+            email TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+        try:
+            conn = self.connect()
+            cur = conn.cursor()
+            cur.execute(query)
+            conn.commit()
+        except sqlite3.Error as e:
+            logger.error(f"SQLite error creating users table: {e}")
+        finally:
+            try: conn.close()
+            except Exception: pass
+
+    def upsert_user_google(self, sub: str, email: str | None):
+        """Insert or update a Google user and return row dict."""
+        try:
+            conn = self.connect(); cur = conn.cursor()
+            cur.execute("SELECT id, google_sub, email, created_at FROM users WHERE google_sub = ?", (sub,))
+            row = cur.fetchone()
+            if row:
+                cur.execute("UPDATE users SET email = COALESCE(?, email) WHERE google_sub = ?", (email, sub))
+                conn.commit()
+                cur.execute("SELECT id, google_sub, email, created_at FROM users WHERE google_sub = ?", (sub,))
+                row = cur.fetchone()
+            else:
+                cur.execute("INSERT INTO users (google_sub, email) VALUES (?, ?)", (sub, email))
+                conn.commit()
+                cur.execute("SELECT id, google_sub, email, created_at FROM users WHERE google_sub = ?", (sub,))
+                row = cur.fetchone()
+            if not row:
+                return None
+            return {"id": row[0], "google_sub": row[1], "email": row[2], "created_at": row[3]}
+        except sqlite3.Error as e:
+            logger.error(f"SQLite upsert user error: {e}")
+            return None
+        finally:
+            try: conn.close()
+            except Exception: pass
+
+    def get_user_by_id(self, user_id: int):
+        try:
+            conn = self.connect(); cur = conn.cursor()
+            cur.execute("SELECT id, google_sub, email, created_at FROM users WHERE id = ?", (user_id,))
+            r = cur.fetchone()
+            if not r: return None
+            return {"id": r[0], "google_sub": r[1], "email": r[2], "created_at": r[3]}
+        except sqlite3.Error as e:
+            logger.error(f"SQLite get_user_by_id error: {e}")
+            return None
+        finally:
+            try: conn.close()
+            except Exception: pass
 
     # --- Character accessors ---
     def get_characters(self, active_only=True):
@@ -230,8 +310,82 @@ class DBOperation:
                 } for r in rows
             ]
         except sqlite3.Error as e:
-            print(f"SQLite error get_characters: {e}")
+            logger.error(f"SQLite error get_characters: {e}")
             return []
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def normalize_dialogue_characters(self, project_id: int | None = None) -> dict:
+        """Repair dialogues where 'character' is a placeholder ('speaker1'/'speaker2') and/or character_id is NULL.
+
+        - For each project, read speaker1_id/speaker2_id and their names/image_paths.
+        - Update dialouge_stage rows for that project:
+            * character == 'speaker1' -> set to speaker1 name, character_id = speaker1_id, image = COALESCE(image, s1.image_path)
+            * character == 'speaker2' -> set to speaker2 name, character_id = speaker2_id, image = COALESCE(image, s2.image_path)
+            * character_id IS NULL and character (case-insensitive) matches a known name -> set character_id accordingly
+        Returns a summary dict with counts.
+        """
+        fixed_placeholder = 0
+        fixed_ids = 0
+        try:
+            conn = self.connect()
+            cur = conn.cursor()
+            # Determine projects to process
+            if project_id is not None:
+                proj_rows = [(project_id,)]
+            else:
+                cur.execute("SELECT id FROM projects;")
+                proj_rows = cur.fetchall()
+            for (pid,) in proj_rows:
+                # Fetch project speakers
+                cur.execute("SELECT speaker1_id, speaker2_id FROM projects WHERE id = ?;", (pid,))
+                row = cur.fetchone()
+                if not row:
+                    continue
+                s1_id, s2_id = row
+                s1 = s2 = None
+                if s1_id:
+                    cur.execute("SELECT id, name, image_path FROM characters WHERE id = ?;", (s1_id,))
+                    s1 = cur.fetchone()
+                if s2_id:
+                    cur.execute("SELECT id, name, image_path FROM characters WHERE id = ?;", (s2_id,))
+                    s2 = cur.fetchone()
+                # Replace placeholders
+                if s1:
+                    cur.execute(
+                        "UPDATE dialouge_stage SET character = ?, character_id = COALESCE(character_id, ?), image = COALESCE(image, ?) "
+                        "WHERE project_id = ? AND lower(character) = 'speaker1';",
+                        (s1[1], s1[0], s1[2], pid)
+                    )
+                    fixed_placeholder += cur.rowcount or 0
+                if s2:
+                    cur.execute(
+                        "UPDATE dialouge_stage SET character = ?, character_id = COALESCE(character_id, ?), image = COALESCE(image, ?) "
+                        "WHERE project_id = ? AND lower(character) = 'speaker2';",
+                        (s2[1], s2[0], s2[2], pid)
+                    )
+                    fixed_placeholder += cur.rowcount or 0
+                # Fill missing character_id when name matches s1/s2
+                if s1:
+                    cur.execute(
+                        "UPDATE dialouge_stage SET character_id = ? WHERE project_id = ? AND character_id IS NULL AND lower(character) = lower(?);",
+                        (s1[0], pid, s1[1])
+                    )
+                    fixed_ids += cur.rowcount or 0
+                if s2:
+                    cur.execute(
+                        "UPDATE dialouge_stage SET character_id = ? WHERE project_id = ? AND character_id IS NULL AND lower(character) = lower(?);",
+                        (s2[0], pid, s2[1])
+                    )
+                    fixed_ids += cur.rowcount or 0
+            conn.commit()
+            return {"placeholders_fixed": fixed_placeholder, "ids_fixed": fixed_ids}
+        except sqlite3.Error as e:
+            logger.error(f"SQLite error normalizing dialogue characters: {e}")
+            return {"placeholders_fixed": 0, "ids_fixed": 0}
         finally:
             try:
                 conn.close()
@@ -255,7 +409,7 @@ class DBOperation:
                 "follow_line_audio": r[5]
             }
         except sqlite3.Error as e:
-            print(f"SQLite error get_character_by_id: {e}")
+            logger.error(f"SQLite error get_character_by_id: {e}")
             return None
         finally:
             try:
@@ -270,7 +424,7 @@ class DBOperation:
             cur.execute("SELECT id, name FROM characters WHERE lower(name) LIKE ? LIMIT 1;", (f"%{fragment.lower()}%",))
             return cur.fetchone()
         except sqlite3.Error as e:
-            print(f"SQLite error get_character_by_name_like: {e}")
+            logger.error(f"SQLite error get_character_by_name_like: {e}")
             return None
         finally:
             try:
@@ -297,7 +451,7 @@ class DBOperation:
             conn.commit()
             return {"updated_rows": updates}
         except sqlite3.Error as e:
-            print(f"SQLite error backfilling dialogue character ids: {e}")
+            logger.error(f"SQLite error backfilling dialogue character ids: {e}")
             return {"updated_rows": 0}
         finally:
             try:
@@ -327,7 +481,7 @@ class DBOperation:
             conn.commit()
             return {"projects_assigned": assigned}
         except sqlite3.Error as e:
-            print(f"SQLite error backfilling project speakers: {e}")
+            logger.error(f"SQLite error backfilling project speakers: {e}")
             return {"projects_assigned": 0}
         finally:
             try:
@@ -342,7 +496,7 @@ class DBOperation:
             rows = cursor.fetchall()
             return rows
         except sqlite3.Error as e:
-            print(f"SQLite error during get_projects: {e}")
+            logger.error(f"SQLite error during get_projects: {e}")
             return []
         finally:
             try:
@@ -364,6 +518,7 @@ class DBOperation:
             pass
         finally:
             conn.close()
+
     def create_project(self, title, caption, pdf_url, status=DialougeStatus.NEW, speaker1_id=None, speaker2_id=None):
         """Insert a new project and set current_project_id."""
         try:
@@ -378,7 +533,7 @@ class DBOperation:
             self.current_project_id = pid
             return pid
         except sqlite3.Error as e:
-            print(f"SQLite error during project creation: {e}")
+            logger.error(f"SQLite error during project creation: {e}")
             return None
         finally:
             conn.close()
@@ -402,9 +557,9 @@ class DBOperation:
             cursor = conn.cursor()
             cursor.execute(query)  # <-- This line is required
             conn.commit()
-            print("Table 'dialouge_stage' is ready.")
+            logger.info("Table 'dialouge_stage' is ready.")
         except sqlite3.Error as e:
-            print(f"SQLite error during table creation: {e}")
+            logger.error(f"SQLite error during table creation: {e}")
         finally:
             conn.close()
 
@@ -438,7 +593,7 @@ class DBOperation:
             cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='dialouge_stage';")
             row = cursor.fetchone()
             if row and 'UNIQUE(sentence, character)' in row[0] and 'project_id' not in row[0].split('UNIQUE')[1]:
-                print("Migrating dialouge_stage uniqueness to include project_id...")
+                logger.info("Migrating dialouge_stage uniqueness to include project_id...")
                 cursor.execute("BEGIN TRANSACTION;")
                 cursor.execute("""
                     CREATE TABLE dialouge_stage_new (
@@ -460,13 +615,13 @@ class DBOperation:
                 cursor.execute("DROP TABLE dialouge_stage;")
                 cursor.execute("ALTER TABLE dialouge_stage_new RENAME TO dialouge_stage;")
                 cursor.execute("COMMIT;")
-                print("Migration complete: UNIQUE(sentence, character, project_id) now enforced.")
+                logger.info("Migration complete: UNIQUE(sentence, character, project_id) now enforced.")
         except sqlite3.Error as e:
             try:
                 cursor.execute("ROLLBACK;")
             except Exception:
                 pass
-            print(f"SQLite error during uniqueness migration: {e}")
+            logger.error(f"SQLite error during uniqueness migration: {e}")
         finally:
             try:
                 conn.close()
@@ -484,7 +639,7 @@ class DBOperation:
             )
             conn.commit()
         except sqlite3.Error as e:
-            print(f"SQLite error during audio path update: {e}")
+            logger.error(f"SQLite error during audio path update: {e}")
         finally:
             conn.close()
 
@@ -513,7 +668,7 @@ class DBOperation:
                 )
             conn.commit()
         except sqlite3.Error as e:
-            print(f"SQLite error during upsert: {e}")
+            logger.error(f"SQLite error during upsert: {e}")
         finally:
             conn.close()
 
@@ -528,7 +683,24 @@ class DBOperation:
             cols = [d[0] for d in cur.description]
             return dict(zip(cols, row))
         except sqlite3.Error as e:
-            print(f"SQLite error get_project_by_id: {e}")
+            logger.error(f"SQLite error get_project_by_id: {e}")
+            return None
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def get_project_id_for_dialogue(self, dialogue_id: int) -> int | None:
+        """Return the project_id for a given dialogue row id."""
+        try:
+            conn = self.connect()
+            cur = conn.cursor()
+            cur.execute("SELECT project_id FROM dialouge_stage WHERE id = ?;", (dialogue_id,))
+            row = cur.fetchone()
+            return row[0] if row else None
+        except sqlite3.Error as e:
+            logger.error(f"SQLite error get_project_id_for_dialogue: {e}")
             return None
         finally:
             try:
@@ -555,21 +727,42 @@ class DBOperation:
             rows = cursor.fetchall()
             return rows
         except sqlite3.Error as e:
-            print(f"SQLite error: {e}")
+            logger.error(f"SQLite error: {e}")
             return []
         finally:
             conn.close()
 
     def update_status(self, dialogue_id, status):
-        try:
-            conn = self.connect()
-            cursor = conn.cursor()
-            cursor.execute("UPDATE dialouge_stage SET status = ? WHERE id = ?", (status, dialogue_id))
-            conn.commit()
-        except sqlite3.Error as e:
-            print(f"SQLite error during status update: {e}")
-        finally:
-            conn.close()
+        attempts = 0
+        last_err = None
+        while attempts < 5:
+            try:
+                conn = self.connect()
+                cursor = conn.cursor()
+                cursor.execute("UPDATE dialouge_stage SET status = ? WHERE id = ?", (status, dialogue_id))
+                conn.commit()
+                return True
+            except sqlite3.OperationalError as e:
+                # Retry on database is locked
+                if "locked" in str(e).lower():
+                    attempts += 1
+                    last_err = e
+                    time.sleep(0.1 * attempts)
+                    continue
+                else:
+                    logger.error(f"SQLite error during status update: {e}")
+                    break
+            except sqlite3.Error as e:
+                logger.error(f"SQLite error during status update: {e}")
+                break
+            finally:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+        if last_err:
+            logger.error(f"SQLite error during status update after retries: {last_err}")
+        return False
 
     def reconcile_dialogue_statuses(self, project_id=None):
         """
@@ -579,6 +772,8 @@ class DBOperation:
         Returns a dict with counts of updates performed.
         """
         try:
+
+            completed_reset_dict= {"completed_fixed": 0, "status_reset": 0}
             conn = self.connect()
             cursor = conn.cursor()
 
@@ -607,12 +802,16 @@ class DBOperation:
             requeued = cursor.rowcount
 
             conn.commit()
-            return {"completed_fixed": completed_fixed, "requeued": requeued}
+            completed_reset_dict = {"completed_fixed": completed_fixed, "status_reset": requeued}
+            return completed_reset_dict
         except sqlite3.Error as e:
-            print(f"SQLite error during reconciliation: {e}")
-            return {"completed_fixed": 0, "requeued": 0}
+            logger.error(f"SQLite error during reconciliation: {e}")
+            return {"completed_fixed": 0, "status_reset": 0}
         finally:
-            conn.close()
+            try:
+                conn.close()
+            except Exception:
+                pass
 
     
     def get_dialouge_id(self, project_id:int)->int:
@@ -623,7 +822,7 @@ class DBOperation:
             row = cursor.fetchone()
             return row[0] if row else None
         except sqlite3.Error as e:
-            print(f"SQLite error during get_dialouge_id: {e}")
+            logger.error(f"SQLite error during get_dialouge_id: {e}")
             return None
         finally:
             conn.close()
@@ -845,6 +1044,48 @@ class DBOperation:
         finally:
             conn.close()
 
+    def get_dialogue_completion_counts(self, project_id: int) -> tuple[int, int]:
+        """Return (total, completed) dialogue counts for a project."""
+        try:
+            conn = self.connect()
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM dialouge_stage WHERE project_id = ?;", (project_id,))
+            total = cur.fetchone()[0] or 0
+            cur.execute(
+                "SELECT COUNT(*) FROM dialouge_stage WHERE project_id = ? AND status = ?;",
+                (project_id, DialougeStatus.COMPLETED),
+            )
+            completed = cur.fetchone()[0] or 0
+            return int(total), int(completed)
+        except sqlite3.Error as e:
+            logger.error(f"SQLite error during completion counts: {e}")
+            return 0, 0
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def mark_project_status_if(self, project_id: int, expected_current: str, new_status: str) -> bool:
+        """Atomically set project status to new_status if current matches expected_current."""
+        try:
+            conn = self.connect()
+            cur = conn.cursor()
+            cur.execute(
+                "UPDATE projects SET status = ? WHERE id = ? AND status = ?;",
+                (new_status, project_id, expected_current),
+            )
+            conn.commit()
+            return cur.rowcount > 0
+        except sqlite3.Error as e:
+            logger.error(f"SQLite error during conditional status update: {e}")
+            return False
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
     def get_projects_by_status(self, status):
         """Fetches all projects by their status."""
         try:
@@ -880,14 +1121,30 @@ class DBOperation:
             conn.close()
 
     # --- Characters CRUD helpers ---
-    def create_character(self, name: str, parrot_ai_path: str, image_filename: str, active: int = 1):
-        """Create a new character. image_filename should be just the filename (e.g., 'peter.png')."""
+    def create_character(self, name: str, parrot_ai_path: str, image_filename: str, active: int = 1,
+                         follow_line: str | None = None, follow_line_audio: str | None = None):
+        """Create a new character. image_filename should be just the filename (e.g., 'peter.png').
+        Optionally accepts follow_line and follow_line_audio for initial seed.
+        """
         try:
+            # Validate follow_line length (<= 100)
+            if follow_line is not None and len(follow_line.strip()) > 100:
+                print("Validation error: follow_line must be at most 100 characters.")
+                return None
             conn = self.connect()
             cur = conn.cursor()
+            columns = ["name", "image_path", "parrot_ai_path", "active"]
+            values = [name, image_filename, parrot_ai_path, int(bool(active))]
+            if follow_line is not None:
+                columns.append("follow_line")
+                values.append(follow_line)
+            if follow_line_audio is not None:
+                columns.append("follow_line_audio")
+                values.append(follow_line_audio)
+            placeholders = ", ".join(["?"] * len(values))
             cur.execute(
-                "INSERT INTO characters (name, image_path, parrot_ai_path, active) VALUES (?, ?, ?, ?);",
-                (name, image_filename, parrot_ai_path, int(bool(active)))
+                f"INSERT INTO characters ({', '.join(columns)}) VALUES ({placeholders});",
+                tuple(values)
             )
             conn.commit()
             return cur.lastrowid
@@ -904,9 +1161,14 @@ class DBOperation:
             except Exception:
                 pass
 
-    def update_character(self, character_id: int, parrot_ai_path: str | None = None, image_filename: str | None = None, active: int | None = None) -> bool:
-        """Update selected fields for a character."""
+    def update_character(self, character_id: int, parrot_ai_path: str | None = None, image_filename: str | None = None,
+                         active: int | None = None, follow_line: str | None = None, follow_line_audio: str | None = None) -> bool:
+        """Update selected fields for a character, including follow_line and follow_line_audio when provided."""
         try:
+            # Validate follow_line length (<= 100)
+            if follow_line is not None and len(follow_line.strip()) > 100:
+                print("Validation error: follow_line must be at most 100 characters.")
+                return False
             sets = []
             params = []
             if parrot_ai_path is not None:
@@ -918,6 +1180,12 @@ class DBOperation:
             if active is not None:
                 sets.append("active = ?")
                 params.append(int(bool(active)))
+            if follow_line is not None:
+                sets.append("follow_line = ?")
+                params.append(follow_line)
+            if follow_line_audio is not None:
+                sets.append("follow_line_audio = ?")
+                params.append(follow_line_audio)
             if not sets:
                 return False
             params.append(character_id)
@@ -971,84 +1239,3 @@ class DBOperation:
                 conn.close()
             except Exception:
                 pass
-
-
-#form  of data that  db  accepts  ...
-convo= [
-    {
-      "audio": "C:/path/to/audio/peter_audio_0.mp3",
-      "image": "peter.png",
-      "dialogue": "Peter: MongoDB is a NoSQL database, like a giant bookshelf for your data. No rigid tables!",
-      "image_search": "mongodb noSQL bookshelf analogy",
-      "character": "Peter"
-    },
-    {
-      "audio": "C:/path/to/audio/stewie_audio_1.mp3",
-      "image": "stewie.png",
-      "dialogue": "Stewie: So, no tables? Are we just piling data on a shelf like a hoarder's dream?",
-      "image_search": "mongodb data hoard shelf",
-      "character": "Stewie"
-    },
-    {
-      "audio": "C:/path/to/audio/peter_audio_2.mp3",
-      "image": "peter.png",
-      "dialogue": "Peter: Yep, MongoDB uses collections instead of tables. Think of them as folders of data.",
-      "image_search": "mongodb collections folders",
-      "character": "Peter"
-    },
-    {
-      "audio": "C:/path/to/audio/stewie_audio_3.mp3",
-      "image": "stewie.png",
-      "dialogue": "Stewie: So I can store anything in a folder? Sounds like the tech version of a junk drawer!",
-      "image_search": "mongodb junk drawer analogy",
-      "character": "Stewie"
-    },
-    {
-      "audio": "C:/path/to/audio/peter_audio_4.mp3",
-      "image": "peter.png",
-      "dialogue": "Peter: Exactly! Each document in MongoDB is like a sticky note with data—no fixed format.",
-      "image_search": "mongodb document sticky note",
-      "character": "Peter"
-    },
-    {
-      "audio": "C:/path/to/audio/stewie_audio_5.mp3",
-      "image": "stewie.png",
-      "dialogue": "Stewie: So no columns? Just random data all over the place? Sounds messy.",
-      "image_search": "mongodb no columns messy",
-      "character": "Stewie"
-    },
-    {
-      "audio": "C:/path/to/audio/peter_audio_6.mp3",
-      "image": "peter.png",
-      "dialogue": "Peter: It’s not messy, Stewie! MongoDB is flexible. You can add data as you need it.",
-      "image_search": "mongodb flexible data addition",
-      "character": "Peter"
-    },
-    {
-      "audio": "C:/path/to/audio/stewie_audio_7.mp3",
-      "image": "stewie.png",
-      "dialogue": "Stewie: Flexible? Sounds like the database equivalent of an open bar at a wedding.",
-      "image_search": "mongodb flexible open bar wedding",
-      "character": "Stewie"
-    },
-    {
-      "audio": "C:/path/to/audio/peter_audio_8.mp3",
-      "image": "peter.png",
-      "dialogue": "Peter: More like a buffet, Stewie! It lets you easily scale when the data gets huge.",
-      "image_search": "mongodb scaling buffet analogy",
-      "character": "Peter"
-    }
-  ]
-
-
-if __name__ == "__main__":
-    db = DBOperation()
-    db.truncate_dialouge_stage()
-    db.add_dialogues(convo)
-    print(db.get_stage_and_unprocessed_dialogue())
-    db.show_all_dialogues()
-    ready_assests=db.get_ready_assets()
-    print(ready_assests)
-    for dic in  ready_assests:
-        print(dic)
-    db.truncate_dialouge_stage()

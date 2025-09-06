@@ -76,6 +76,11 @@ def generate_dialogues_from_pdf(pdf_bytes: bytes, speaker1_id: int, speaker2_id:
     cs = CharacterService()
     s1 = cs.get(speaker1_id) if speaker1_id else None
     s2 = cs.get(speaker2_id) if speaker2_id else None
+    # Always ensure a speaker context to allow mapping placeholders to names/ids
+    if not (s1 and s2):
+        fallback = cs.list_active_characters()[:2]
+        if len(fallback) >= 2:
+            s1, s2 = fallback[0], fallback[1]
     speaker_ctx = {"speaker1": s1, "speaker2": s2} if s1 and s2 else None
     for attempt in range(1, max_retries + 1):
         try:
@@ -83,6 +88,27 @@ def generate_dialogues_from_pdf(pdf_bytes: bytes, speaker1_id: int, speaker2_id:
             if not dialogue_data or "dialogue_scenes" not in dialogue_data:
                 raise DialogueGenerationError("Model response missing 'dialogue_scenes'")
             dialogues = dialogue_data["dialogue_scenes"]
+            # Map 'speaker1'/'speaker2' placeholders to actual names and character_ids
+            if speaker_ctx:
+                for d in dialogues:
+                    key = str(d.get("character", "")).strip().lower()
+                    if key == "speaker1" and s1:
+                        d["character"] = s1.get("name")
+                        d["character_id"] = s1.get("id")
+                        if not d.get("image"):
+                            d["image"] = s1.get("image_path", d.get("image", ""))
+                    elif key == "speaker2" and s2:
+                        d["character"] = s2.get("name")
+                        d["character_id"] = s2.get("id")
+                        if not d.get("image"):
+                            d["image"] = s2.get("image_path", d.get("image", ""))
+                    else:
+                        # Try to resolve id if character already a name
+                        name_lower = str(d.get("character", "")).strip().lower()
+                        if s1 and name_lower == str(s1.get("name", "")).strip().lower():
+                            d["character_id"] = s1.get("id")
+                        elif s2 and name_lower == str(s2.get("name", "")).strip().lower():
+                            d["character_id"] = s2.get("id")
             validate_dialogues(dialogues)
             return dialogues
         except Exception as e:
@@ -112,6 +138,11 @@ def create_project_with_dialogues(db: DBOperation, project_name: str, caption: s
 
     # Add dialogues
     db.add_or_update_dialogues(dialogues, project_id)
+    # Safety: normalize any placeholder speaker names and fill missing character_ids
+    try:
+        db.normalize_dialogue_characters(project_id)
+    except Exception:
+        pass
     # Add CTA line with audio
     # Add CTA based on speaker1 (primary)
     add_follow_for_more_dialogue(db, project_id, speaker1_id)

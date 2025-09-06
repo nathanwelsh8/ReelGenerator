@@ -133,3 +133,10 @@ pip install imageio
 - Run it as a background service or use process managers like `systemd`, `pm2`, or `screen`/`tmux` to keep it alive.  
 - This script keeps the Telegram bot live and handles the entire workflow end-to-end.
 
+## API (FastAPI)
+
+This project includes a minimal FastAPI app exposing health, characters, projects, dialogues, and processing endpoints.
+
+- ASGI app: `asgi:app`
+- Local dev (inside repo): `python run_api.py` then open http://localhost:8000/docs
+

@@ -1,5 +1,9 @@
 from typing import List, Optional, Dict
 from db_handler import DBOperation
+import os
+import shutil
+from services.messaging.factory import get_publisher
+from services.messaging.messages import TOPIC_AUDIO_JOBS, AudioJob
 
 class CharacterService:
     """Service layer to interact with character data and provide convenience utilities."""
@@ -84,6 +88,7 @@ class CharacterService:
         if not character:
             return None
         slug = character.get('parrot_ai_path')
+
         if not slug:
             return None
         return f"https://www.tryparrotai.com/ai-voice/{slug}"
@@ -111,3 +116,46 @@ class CharacterService:
         """Raise ValueError if name already exists (case-insensitive)."""
         if self.name_exists(name):
             raise ValueError(f"Character name '{name}' already exists")
+
+    # --- Follow audio generation ---
+    def generate_follow_audio(self, character_id: int, overwrite: bool = False) -> Optional[str]:
+        """Enqueue 'follow for more' audio generation for a character via messaging.
+
+        - Requires character to have parrot_ai_path and follow_line.
+        - If an existing audio file is present and overwrite=False, returns the existing path.
+        - Otherwise, enqueues a character_follow job and returns the expected final path (not guaranteed yet).
+        """
+        ch = self.get(character_id)
+        if not ch:
+            raise ValueError("Character not found")
+        name = (ch.get('name') or '').strip()
+        slug = (ch.get('parrot_ai_path') or '').strip()
+        sentence = (ch.get('follow_line') or '').strip()
+        if not name or not slug:
+            raise ValueError("Character must have a name and Parrot AI slug before generating follow audio")
+        if not sentence:
+            raise ValueError("Follow line is required to generate audio")
+
+        static_dir = os.path.join('audio_assests', 'static')
+        os.makedirs(static_dir, exist_ok=True)
+
+        # Preferred filename by slug; fallback to sanitized name
+        base = slug if slug else name.lower().replace(' ', '_')
+        final_filename = f"{base}_follow_for_more.mp3"
+        final_path = os.path.join(static_dir, final_filename)
+
+        if (not overwrite) and ch.get('follow_line_audio') and os.path.isfile(ch['follow_line_audio']):
+            return ch['follow_line_audio']
+
+        # Publish job for async generation
+        publisher = get_publisher()
+        job: AudioJob = {
+            "job_type": "character_follow",
+            "sentence": sentence,
+            "character": name,
+            "character_id": character_id,
+        }
+        publisher.publish(TOPIC_AUDIO_JOBS, job, key=f"follow-{character_id}")
+        # Optimistically update DB with the intended target path so UI can reference it later
+        self.db.update_character(character_id, follow_line_audio=final_path)
+        return final_path

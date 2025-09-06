@@ -1,0 +1,13 @@
+@import './assets/styles/variables.css';
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, Roboto, Arial, sans-serif; background:#0f1115; color:#f5f7fa; }
+
+h1,h2,h3,h4 { font-weight:600; }
+
+a { color: var(--color-accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+
+:root {
+  color-scheme: light dark;
+}

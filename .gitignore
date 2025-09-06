@@ -22,3 +22,41 @@ downloaded_images/
 *.db
 *.mp4.jpg
 image_assests/thumbnails/*
+
+*/node_modules/*
+.github/instructions/When coding UI services that contact API endpoints, veryify that the routes exist in the API, do not just assume...instructions.md
+.gitignore
+.github/instructions/Fast API Guidance.instructions.md
+stewie_database.db-wal
+stewie_database.db-shm
+ui/dist/
+
+# --- Added common ignore patterns ---
+# TypeScript build info
+ui/tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Python tooling caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Coverage artifacts
+.coverage
+coverage/
+
+# OS / editor artifacts
+.DS_Store
+.eslintcache
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Virtual environments
+venv/
+env/
+
+# Legacy streamlit directory (removed)
+streamlit/

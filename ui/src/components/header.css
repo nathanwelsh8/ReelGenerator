@@ -1,0 +1,5 @@
+.app-header { display:flex; align-items:center; gap:2rem; padding:0 1.25rem; height:56px; background: var(--color-surface); box-shadow: var(--shadow-sm); }
+.app-header .logo { font-weight:600; letter-spacing:.5px; }
+.app-header nav { display:flex; gap:1rem; }
+.app-header a { padding:.4rem .9rem; border-radius: var(--radius-md); font-size:.9rem; font-weight:500; color: var(--color-text-dim); }
+.app-header a.active, .app-header a:hover { background: var(--color-accent); color:#fff; text-decoration:none; }

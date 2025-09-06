@@ -4,7 +4,19 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        
+        {
+            "name": "UI: Start",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/ui",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "dev"],
+            "env": {
+                "VITE_API_BASE": "http://localhost:8000",
+                "VITE_GOOGLE_CLIENT_ID": "816675945395-baf59ejmlutui561htohnn8hq6655o4j.apps.googleusercontent.com"
+            },
+            "console": "integratedTerminal"
+        },
         {
             "name": "Python Debugger: Current File",
             "type": "debugpy",
@@ -14,14 +26,36 @@
         }
         ,
         {
-            "name": "Run streamlit_app",
-            "type": "python",
+            "name": "Run Audio Worker",
+            "type": "debugpy",
             "request": "launch",
-            "module": "streamlit",
-            "args": ["run", "streamlit/streamlit_app.py", "--logger.level", "debug"],
+            "program": "${workspaceFolder}/workers/audio_worker.py",
             "console": "integratedTerminal",
             "env": {
                 "PYTHONUNBUFFERED": "1"
+            }
+        }
+        ,
+        {
+            "name": "Run Video Worker",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/workers/video_worker.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONUNBUFFERED": "1"
+            }
+    },
+    {
+            "name": "Run API",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": ["asgi:app", "--host", "0.0.0.0", "--port", "8000"],
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONUNBUFFERED": "1",
+                "API_CONSUMER_ENABLED": "false"
             }
         }
     ]

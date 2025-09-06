@@ -7,26 +7,34 @@ set -euo pipefail
 # Ensure working directory
 cd /app
 
-# Ensure cron job exists (idempotent)
+# Always (re)write cron job file to avoid stale configs from image build
 PY=$(command -v python3 || echo /usr/local/bin/python3)
 CRON_FILE=/etc/cron.d/app-cron
-if [ ! -f "$CRON_FILE" ]; then
-	echo "Creating $CRON_FILE"
-	{
-		echo 'SHELL=/bin/bash'
-		echo 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-		echo ''
-	echo "0 * * * * root echo \"[CRON] $(date '+%Y-%m-%d %H:%M:%S') Running main.py\" >> /var/log/cron.log; cd /app && $PY /app/main.py >> /var/log/cron.log 2>&1"
-	echo "0 */2 * * * root echo \"[CRON] $(date '+%Y-%m-%d %H:%M:%S') Running upload_to_instagram.py\" >> /var/log/cron.log; cd /app && $PY /app/upload_to_instagram.py >> /var/log/cron.log 2>&1"
-	} > "$CRON_FILE"
+echo "Writing $CRON_FILE"
+cat > "$CRON_FILE" <<'EOF'
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Run main.py hourly at minute 0
+0 * * * * root echo "[CRON] $(date '+%Y-%m-%d %H:%M:%S') Running main.py" >> /var/log/cron.log; cd /app && /usr/local/bin/python3 /app/main.py >> /var/log/cron.log 2>&1
+
+# Run upload_to_instagram.py every 2 hours
+0 */2 * * * root echo "[CRON] $(date '+%Y-%m-%d %H:%M:%S') Running upload_to_instagram.py" >> /var/log/cron.log; cd /app && /usr/local/bin/python3 /app/upload_to_instagram.py >> /var/log/cron.log 2>&1
+EOF
+chmod 0644 "$CRON_FILE"
+
+# Optionally append a 1-minute heartbeat when enabled via env
+if [ "${CRON_DEBUG_HEARTBEAT:-}" = "1" ]; then
+	echo "* * * * * root echo \"[CRON] $(date '+%Y-%m-%d %H:%M:%S') heartbeat\" >> /var/log/cron.log" >> "$CRON_FILE"
 	chmod 0644 "$CRON_FILE"
 fi
 
 # Make sure the log file exists
 touch /var/log/cron.log || true
 
-# Print crontab for debugging
-crontab -l || true
+# Show cron.d file for debugging
+echo "--- $CRON_FILE ---"
+sed -n '1,200p' "$CRON_FILE" || true
 
 # Start cron in the foreground so container stays alive
 exec cron -f

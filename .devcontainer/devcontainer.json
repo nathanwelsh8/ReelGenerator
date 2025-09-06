@@ -1,20 +1,33 @@
 {
   "name": "StewieReelsGenerator",
-  "image": "stewieitv1:latest",
+  "dockerComposeFile": [
+    "./docker-compose.yml"
+  ],
+  "service": "app",
   "workspaceFolder": "/app",
   "mounts": [
     "source=${localWorkspaceFolder},target=/app,type=bind"
   ],
-  "settings": {
-    "terminal.integrated.defaultProfile.linux": "bash"
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "ms-python.python",
+        "dbaeumer.vscode-eslint",
+        "google.geminicodeassist",
+        "ms-toolsai.jupyter",
+        "ms-python.debugpy",
+        "cweijan.vscode-office",
+        "qwtel.sqlite-viewer"
+      ]
+    }
   },
-  "extensions": [
-    "ms-python.python",
-    "dbaeumer.vscode-eslint",
-    "google.geminicodeassist",
-    "ms-toolsai.jupyter",
-    "ms-python.debugpy",
-    "cweijan.vscode-office",
-    "qwtel.sqlite-viewer"
-  ]
+  "postStartCommand": "bash dev_start.sh",
+  "remoteEnv": {
+    "RABBITMQ_URL": "amqp://guest:guest@rabbitmq:5672/%2F",
+    "MESSAGING_BACKEND": "rabbitmq"
+  },
+  "overrideCommand": true
 }

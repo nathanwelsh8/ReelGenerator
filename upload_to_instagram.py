@@ -1,18 +1,29 @@
 from instagrapi import Client
 import sys
 import os
+from typing import Optional, List, Dict
 from settings import get_settings
 from db_handler import DBOperation
 from utils import DialougeStatus
 from services.thumbnail_generator import generate as generate_thumbnail
 from services.caption_generator import generate_caption
 
-def main():
+def main(project_id: Optional[int] = None):
     settings = get_settings()
     db = DBOperation()
 
-    # Get all completed projects
-    completed_projects = db.get_projects_by_status(DialougeStatus.COMPLETED)
+    # Resolve projects to upload (either a specific one or all COMPLETED)
+    if project_id is not None:
+        proj = db.get_project_by_id(project_id)
+        if not proj:
+            print(f"Project id {project_id} not found")
+            return
+        if proj.get('status') != DialougeStatus.COMPLETED:
+            print(f"Project {project_id} is not COMPLETED (status={proj.get('status')}). Skipping.")
+            return
+        completed_projects: List[Dict] = [proj]
+    else:
+        completed_projects = db.get_projects_by_status(DialougeStatus.COMPLETED)
 
     if not completed_projects:
         print("No completed projects to upload.")

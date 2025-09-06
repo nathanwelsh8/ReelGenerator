@@ -24,12 +24,11 @@ def fetch_pdf_from_url(url: str) -> bytes:
         return None
 
 def _build_system_instruction(s1_name: str, s2_name: str, s1_image: str, s2_image: str) -> str:
-    """Return system prompt with dynamic speaker names & images replacing hard-coded Peter/Stewie."""
-    # Use lowercase short tokens speaker1/speaker2 in output schema
+    """Return system prompt with dynamic speaker names & images using actual names in output schema."""
     base = f"""# High level instructions
 
 Your task is to read the provided document and produce a transcript that summarises and explains the document in detail.
-The conversation should be between {s1_name} (speaker1) and {s2_name} (speaker2) from Family Guy. Any dialogue should be witty and in character.
+The conversation should be between {s1_name} and {s2_name}. Any dialogue should be witty and in character.
 
 # Instructions
 1. Analyse the provided file to understand its contents
@@ -47,16 +46,17 @@ The conversation should be between {s1_name} (speaker1) and {s2_name} (speaker2)
 7. Open with a strong hook related to the central topic.
 
 ## Image rules
-When speaker1 is speaking, the image should be "{s1_image}"
-When speaker2 is speaking, the image should be "{s2_image}"
+When {s1_name} is speaking, the image should be "{s1_image}"
+When {s2_name} is speaking, the image should be "{s2_image}"
 No other values are accepted for this field.
 
 ## Image search rules
 If the line of dialogue could benefit from an illustrative image, provide 1-4 short keywords. Otherwise empty string.
 
 ## Character field rules
-If the line corresponds to {s1_name} use value "speaker1"
-If the line corresponds to {s2_name} use value "speaker2"
+For each line, set the "character" field to the actual speaker's name exactly as given:
+If the line corresponds to {s1_name} use value "{s1_name}"
+If the line corresponds to {s2_name} use value "{s2_name}"
 No other values are accepted.
 
 Return ONLY JSON matching the response schema. No extra commentary.
@@ -126,7 +126,8 @@ def generate_from_pdf_content(pdf_content: bytes, speaker_context: Optional[Dict
                         properties={
                             "image": genai.types.Schema(type=genai.types.Type.STRING),
                             "dialogue": genai.types.Schema(type=genai.types.Type.STRING),
-                            "character": genai.types.Schema(type=genai.types.Type.STRING),  # expects "speaker1" / "speaker2"
+                            # character: model should return actual character name (we also accept legacy 'speaker1'/'speaker2')
+                            "character": genai.types.Schema(type=genai.types.Type.STRING),
                             "image_search": genai.types.Schema(type=genai.types.Type.STRING),
                         },
                     ),
@@ -143,14 +144,26 @@ def generate_from_pdf_content(pdf_content: bytes, speaker_context: Optional[Dict
         )
         data = json.loads(response.text)
         scenes = data.get("dialogue_scenes", [])
+        s1n = (s1.get("name") or "").strip()
+        s2n = (s2.get("name") or "").strip()
+        s1n_low = s1n.lower()
+        s2n_low = s2n.lower()
         for scene in scenes:
-            keyc = scene.get("character")
-            if keyc == "speaker1":
-                scene["character_name"] = s1.get("name")
-                scene["image"] = s1.get("image_path")
-            elif keyc == "speaker2":
-                scene["character_name"] = s2.get("name")
-                scene["image"] = s2.get("image_path")
+            val = (scene.get("character") or "").strip()
+            low = val.lower()
+            # Accept either explicit names or legacy placeholders
+            if low in ("speaker1", s1n_low):
+                scene["character"] = s1n
+                if s1.get("id") is not None:
+                    scene["character_id"] = s1.get("id")
+                if not scene.get("image"):
+                    scene["image"] = s1.get("image_path")
+            elif low in ("speaker2", s2n_low):
+                scene["character"] = s2n
+                if s2.get("id") is not None:
+                    scene["character_id"] = s2.get("id")
+                if not scene.get("image"):
+                    scene["image"] = s2.get("image_path")
         return data
     except Exception as e:
         print(f"Error during dialogue generation: {e}")
