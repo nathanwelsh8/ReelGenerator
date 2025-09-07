@@ -4,6 +4,8 @@ from fastapi.staticfiles import StaticFiles
 from services.config.logging_config import configure_logging
 from logging import getLogger
 
+from migrations.runner import run_all_migrations
+
 from .middleware.auth import auth_middleware  # type: ignore
 from .routes.health import router as health_router
 from .routes.auth import router as auth_router  # helpers consumed in middleware
@@ -17,6 +19,13 @@ def create_app() -> FastAPI:
     
     configure_logging()
     logger = getLogger("app")
+
+    # Run migrations early (idempotent)
+    logger.info("Running migrations (if any)")
+    try:    
+        run_all_migrations()
+    except Exception as mig_err:
+        logger.error(f"Migration run failed: {mig_err}")
 
     app = FastAPI(title="Brainrot Factory API", version="0.1.0")
 

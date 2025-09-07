@@ -9,22 +9,8 @@ logger = getLogger(__name__)
 class DBOperation:
     def __init__(self, db_name="stewie_database.db"):
         """Initialize DB and run idempotent migrations."""
+        # Keep init light; migrations handled by migrations.runner
         self.db_name = db_name
-        # Base tables
-        self.create_projects_table()
-        self.create_dialouge_stage_table()
-        # Additive migrations for multi-character support (Step 1)
-        self.create_characters_table()
-        self._ensure_character_name_unique_index()
-        self._ensure_project_speaker_columns()
-        self._ensure_dialouge_character_id_column()
-        # Auth related
-        self._ensure_users_table()
-        # Seed baseline characters
-        self.seed_characters()
-        # Legacy support / prior migrations
-        self._ensure_project_id_column()
-        self._ensure_dialogue_uniqueness()
 
     def connect(self):
         conn = sqlite3.connect(self.db_name, timeout=30, check_same_thread=False)
@@ -63,190 +49,11 @@ class DBOperation:
                 pass
     
     # --- New multi-character schema helpers ---
-    def create_characters_table(self):
-        """Create characters table if not exists."""
-        query = """
-        CREATE TABLE IF NOT EXISTS characters (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            image_path TEXT NOT NULL,
-            parrot_ai_path TEXT NOT NULL UNIQUE,
-            active INTEGER DEFAULT 1,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-        """
-        try:
-            conn = self.connect()
-            cur = conn.cursor()
-            cur.execute(query)
-            conn.commit()
-        except sqlite3.Error as e:
-            logger.critical(f"SQLite error creating characters table: {e}")
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
-        # Ensure newly added follow columns exist (cannot be in original CREATE for idempotency with previous versions)
-        self._ensure_character_follow_columns()
 
-    def _ensure_character_follow_columns(self):
-        """Add follow_line and follow_line_audio columns if missing (SQLite ALTER TABLE add column)."""
-        try:
-            conn = self.connect()
-            cur = conn.cursor()
-            cur.execute("PRAGMA table_info(characters);")
-            cols = [r[1] for r in cur.fetchall()]
-            stmts = []
-            if 'follow_line' not in cols:
-                stmts.append("ALTER TABLE characters ADD COLUMN follow_line TEXT;")
-            if 'follow_line_audio' not in cols:
-                stmts.append("ALTER TABLE characters ADD COLUMN follow_line_audio TEXT;")
-            for s in stmts:
-                try:
-                    cur.execute(s)
-                except sqlite3.Error as ie:
-                    print(f"SQLite error adding follow column: {ie}")
-            if stmts:
-                conn.commit()
-        except sqlite3.Error as e:
-            logger.critical(f"SQLite error ensuring follow columns: {e}")
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
-
-    def _ensure_character_name_unique_index(self):
-        """Ensure a case-insensitive unique index on characters.name to prevent duplicates by case."""
-        try:
-            conn = self.connect()
-            cur = conn.cursor()
-            # Create a case-insensitive unique index; safe if already exists
-            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_characters_name_nocase ON characters(name COLLATE NOCASE);")
-            conn.commit()
-        except sqlite3.Error as e:
-            # If duplicates already exist, this will fail; log and continue
-            logger.warning(f"SQLite error ensuring unique name index: {e}")
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
-
-    def _ensure_project_speaker_columns(self):
-        """Add speaker1_id, speaker2_id columns to projects if missing (idempotent)."""
-        try:
-            conn = self.connect()
-            cur = conn.cursor()
-            cur.execute("PRAGMA table_info(projects);")
-            cols = [r[1] for r in cur.fetchall()]
-            alters = []
-            if 'speaker1_id' not in cols:
-                alters.append("ALTER TABLE projects ADD COLUMN speaker1_id INTEGER;")
-            if 'speaker2_id' not in cols:
-                alters.append("ALTER TABLE projects ADD COLUMN speaker2_id INTEGER;")
-            for stmt in alters:
-                try:
-                    cur.execute(stmt)
-                except sqlite3.Error as ie:
-                    logger.critical(f"SQLite error adding speaker column: {ie}")
-            if alters:
-                conn.commit()
-        except sqlite3.Error as e:
-            logger.critical(f"SQLite error ensuring speaker columns: {e}")
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
-
-    def _ensure_dialouge_character_id_column(self):
-        """Add character_id column to dialouge_stage if missing (idempotent)."""
-        try:
-            conn = self.connect()
-            cur = conn.cursor()
-            cur.execute("PRAGMA table_info(dialouge_stage);")
-            cols = [r[1] for r in cur.fetchall()]
-            if 'character_id' not in cols:
-                try:
-                    cur.execute("ALTER TABLE dialouge_stage ADD COLUMN character_id INTEGER;")
-                    conn.commit()
-                except sqlite3.Error as ie:
-                    logger.critical(f"SQLite error adding character_id: {ie}")
-        except sqlite3.Error as e:
-            logger.critical(f"SQLite error ensuring character_id column: {e}")
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
-
-    def seed_characters(self):
-        """Seed baseline characters (Peter & Stewie) if not present. Safe to call repeatedly."""
-        seeds = [
-            {
-                "name": "Peter Griffin",
-                "image_path": "peter.png",
-                "parrot_ai_path": "peter-griffin",
-                "follow_line": "If you wanna see more of this genius stuff, follow Professor Peter Griffin. Do it. Do it now.",
-                "follow_line_audio": "audio_assests/static/peter_follow_for_more.mp3"
-            },
-            {
-                "name": "Stewie Griffin",
-                "image_path": "stewie.png",
-                "parrot_ai_path": "stewie-griffin",
-                "follow_line": "I'll be monitoring your future transmissions. Consider yourself 'followed'.",
-                "follow_line_audio": "audio_assests/static/stewie_follow_for_more.mp3"
-            },
-        ]
-        try:
-            conn = self.connect()
-            cur = conn.cursor()
-            for s in seeds:
-                try:
-                    # Upsert pattern: try insert; then update follow fields if NULL
-                    cur.execute(
-                        "INSERT OR IGNORE INTO characters (name, image_path, parrot_ai_path, follow_line, follow_line_audio) VALUES (?, ?, ?, ?, ?);",
-                        (s["name"], s["image_path"], s["parrot_ai_path"], s.get("follow_line"), s.get("follow_line_audio"))
-                    )
-                    # Ensure follow lines populated if row pre-existed without them
-                    cur.execute(
-                        "UPDATE characters SET follow_line = COALESCE(follow_line, ?), follow_line_audio = COALESCE(follow_line_audio, ?) WHERE name = ?;",
-                        (s.get("follow_line"), s.get("follow_line_audio"), s["name"]) 
-                    )
-                except sqlite3.Error as ie:
-                    logger.error(f"SQLite error seeding character {s['name']}: {ie}")
-            conn.commit()
-        except sqlite3.Error as e:
-            logger.error(f"SQLite error during character seeding: {e}")
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
+    # (Schema / ensure / seed helpers moved to migrations modules)
 
     # --- Users / Auth ---
-    def _ensure_users_table(self):
-        """Create users table for Google-authenticated users if missing."""
-        query = """
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            google_sub TEXT NOT NULL UNIQUE,
-            email TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-        """
-        try:
-            conn = self.connect()
-            cur = conn.cursor()
-            cur.execute(query)
-            conn.commit()
-        except sqlite3.Error as e:
-            logger.error(f"SQLite error creating users table: {e}")
-        finally:
-            try: conn.close()
-            except Exception: pass
+    # _ensure_users_table moved to migrations
 
     def upsert_user_google(self, sub: str, email: str | None):
         """Insert or update a Google user and return row dict."""
@@ -289,14 +96,20 @@ class DBOperation:
             except Exception: pass
 
     # --- Character accessors ---
-    def get_characters(self, active_only=True):
+    def get_characters(self, active_only=True, user_id: int | None = None):
         try:
             conn = self.connect()
             cur = conn.cursor()
+            base_select = "SELECT id, name, image_path, parrot_ai_path, follow_line, follow_line_audio, active, user_id FROM characters"
+            clauses = []
+            params: list = []
             if active_only:
-                cur.execute("SELECT id, name, image_path, parrot_ai_path, follow_line, follow_line_audio, active FROM characters WHERE active = 1 ORDER BY name ASC;")
-            else:
-                cur.execute("SELECT id, name, image_path, parrot_ai_path, follow_line, follow_line_audio, active FROM characters ORDER BY name ASC;")
+                clauses.append("active = 1")
+            if user_id is not None:
+                clauses.append("user_id = ?")
+                params.append(user_id)
+            where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+            cur.execute(base_select + where + " ORDER BY name ASC;", tuple(params))
             rows = cur.fetchall()
             return [
                 {
@@ -307,6 +120,7 @@ class DBOperation:
                     "follow_line": r[4],
                     "follow_line_audio": r[5],
                     "active": r[6],
+                    "user_id": r[7] if len(r) > 7 else None,
                 } for r in rows
             ]
         except sqlite3.Error as e:
@@ -396,7 +210,7 @@ class DBOperation:
         try:
             conn = self.connect()
             cur = conn.cursor()
-            cur.execute("SELECT id, name, image_path, parrot_ai_path, follow_line, follow_line_audio FROM characters WHERE id = ?;", (cid,))
+            cur.execute("SELECT id, name, image_path, parrot_ai_path, follow_line, follow_line_audio, user_id FROM characters WHERE id = ?;", (cid,))
             r = cur.fetchone()
             if not r:
                 return None
@@ -406,7 +220,8 @@ class DBOperation:
                 "image_path": r[2],
                 "parrot_ai_path": r[3],
                 "follow_line": r[4],
-                "follow_line_audio": r[5]
+                "follow_line_audio": r[5],
+                "user_id": r[6] if len(r) > 6 else None
             }
         except sqlite3.Error as e:
             logger.error(f"SQLite error get_character_by_id: {e}")
@@ -488,21 +303,21 @@ class DBOperation:
                 conn.close()
             except Exception:
                 pass
-    def get_projects(self):
+    def get_projects(self, user_id: int | None = None):
+        """Return list of project tuples (legacy shape) optionally filtered by user_id."""
         try:
-            conn = self.connect()
-            cursor = conn.cursor()
-            cursor.execute("SELECT id, title, caption, pdf_url, status, video_path FROM projects ORDER BY id ASC;")
-            rows = cursor.fetchall()
-            return rows
+            conn = self.connect(); cursor = conn.cursor()
+            if user_id is not None:
+                cursor.execute("SELECT id, title, caption, pdf_url, status, video_path FROM projects WHERE user_id = ? ORDER BY id ASC;", (user_id,))
+            else:
+                cursor.execute("SELECT id, title, caption, pdf_url, status, video_path FROM projects ORDER BY id ASC;")
+            return cursor.fetchall()
         except sqlite3.Error as e:
             logger.error(f"SQLite error during get_projects: {e}")
             return []
         finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
+            try: conn.close()
+            except Exception: pass
 
     def _ensure_project_id_column(self):
         try:
@@ -519,15 +334,26 @@ class DBOperation:
         finally:
             conn.close()
 
-    def create_project(self, title, caption, pdf_url, status=DialougeStatus.NEW, speaker1_id=None, speaker2_id=None):
+    def create_project(self, title, caption, pdf_url, status=DialougeStatus.NEW, speaker1_id=None, speaker2_id=None, user_id: int | None = None):
         """Insert a new project and set current_project_id."""
         try:
             conn = self.connect()
             cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO projects (title, caption, pdf_url, status, speaker1_id, speaker2_id) VALUES (?, ?, ?, ?, ?, ?);",
-                (title, caption, pdf_url, status, speaker1_id, speaker2_id)
-            )
+            # Attempt with user_id column first (present after migration)
+            try:
+                cursor.execute(
+                    "INSERT INTO projects (title, caption, pdf_url, status, speaker1_id, speaker2_id, user_id) VALUES (?, ?, ?, ?, ?, ?, ?);",
+                    (title, caption, pdf_url, status, speaker1_id, speaker2_id, user_id)
+                )
+            except sqlite3.Error as ie:
+                # Fallback legacy (shouldn't normally happen once migrated)
+                if 'user_id' in str(ie).lower():
+                    cursor.execute(
+                        "INSERT INTO projects (title, caption, pdf_url, status, speaker1_id, speaker2_id) VALUES (?, ?, ?, ?, ?, ?);",
+                        (title, caption, pdf_url, status, speaker1_id, speaker2_id)
+                    )
+                else:
+                    raise
             conn.commit()
             pid = cursor.lastrowid
             self.current_project_id = pid
@@ -676,7 +502,7 @@ class DBOperation:
         try:
             conn = self.connect()
             cur = conn.cursor()
-            cur.execute("SELECT id, title, caption, pdf_url, status, video_path, speaker1_id, speaker2_id FROM projects WHERE id = ?;", (project_id,))
+            cur.execute("SELECT id, title, caption, pdf_url, status, video_path, speaker1_id, speaker2_id, user_id FROM projects WHERE id = ?;", (project_id,))
             row = cur.fetchone()
             if not row:
                 return None
@@ -690,6 +516,13 @@ class DBOperation:
                 conn.close()
             except Exception:
                 pass
+
+    def get_project_by_id_for_user(self, project_id: int, user_id: int):
+        """Fetch project only if owned by user_id."""
+        p = self.get_project_by_id(project_id)
+        if p and p.get('user_id') == user_id:
+            return p
+        return None
 
     def get_project_id_for_dialogue(self, dialogue_id: int) -> int | None:
         """Return the project_id for a given dialogue row id."""
@@ -1122,7 +955,7 @@ class DBOperation:
 
     # --- Characters CRUD helpers ---
     def create_character(self, name: str, parrot_ai_path: str, image_filename: str, active: int = 1,
-                         follow_line: str | None = None, follow_line_audio: str | None = None):
+                         follow_line: str | None = None, follow_line_audio: str | None = None, user_id: int | None = None):
         """Create a new character. image_filename should be just the filename (e.g., 'peter.png').
         Optionally accepts follow_line and follow_line_audio for initial seed.
         """
@@ -1141,6 +974,11 @@ class DBOperation:
             if follow_line_audio is not None:
                 columns.append("follow_line_audio")
                 values.append(follow_line_audio)
+            if user_id is not None:
+                columns.append("user_id")
+                values.append(user_id)
+            else:
+                raise ValueError("user_id must be provided when creating a character")
             placeholders = ", ".join(["?"] * len(values))
             cur.execute(
                 f"INSERT INTO characters ({', '.join(columns)}) VALUES ({placeholders});",

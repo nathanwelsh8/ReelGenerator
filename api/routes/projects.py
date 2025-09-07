@@ -1,16 +1,17 @@
 from typing import List
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from db_handler import DBOperation
 from services.project_service import create_project_with_dialogues, ProjectExistsError
 from api.schemas import ProjectCreate, ProjectOut
+from api.routes.auth import get_current_user
 
 router = APIRouter()
 db = DBOperation()
 
 
 @router.get("/", response_model=List[ProjectOut])
-def list_projects():
-    rows = db.get_projects()
+def list_projects(user=Depends(get_current_user)):
+    rows = db.get_projects(user_id=user.get('id'))
     out: List[ProjectOut] = []  # type: ignore[assignment]
     for r in rows:
         # id, title, caption, pdf_url, status, video_path
@@ -22,7 +23,7 @@ def list_projects():
 
 
 @router.post("/", response_model=dict)
-def create_project(payload: ProjectCreate):
+def create_project(payload: ProjectCreate, user=Depends(get_current_user)):
     try:
         res = create_project_with_dialogues(
             db,
@@ -31,6 +32,7 @@ def create_project(payload: ProjectCreate):
             pdf_url=str(payload.pdf_url),
             speaker1_id=payload.speaker1_id or 0,
             speaker2_id=payload.speaker2_id or 0,
+            user_id=user.get('id')
         )
         return res
     except ProjectExistsError as e:
@@ -40,8 +42,8 @@ def create_project(payload: ProjectCreate):
 
 
 @router.get("/{project_id}", response_model=ProjectOut)
-def get_project(project_id: int):
-    p = db.get_project_by_id(project_id)
+def get_project(project_id: int, user=Depends(get_current_user)):
+    p = db.get_project_by_id_for_user(project_id, user.get('id'))
     if not p:
         raise HTTPException(status_code=404, detail="Project not found")
     return ProjectOut(**p)

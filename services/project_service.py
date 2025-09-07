@@ -117,7 +117,7 @@ def generate_dialogues_from_pdf(pdf_bytes: bytes, speaker1_id: int, speaker2_id:
     raise DialogueGenerationError(f"Dialogue generation failed after {max_retries} attempts: {last_error}")
 
 
-def create_project_with_dialogues(db: DBOperation, project_name: str, caption: str, pdf_url: str, speaker1_id: int, speaker2_id: int) -> Dict[str, Any]:
+def create_project_with_dialogues(db: DBOperation, project_name: str, caption: str, pdf_url: str, speaker1_id: int, speaker2_id: int, user_id: int | None = None) -> Dict[str, Any]:
     if project_exists(db, project_name):
         raise ProjectExistsError(f"Project '{project_name}' already exists")
 
@@ -125,7 +125,7 @@ def create_project_with_dialogues(db: DBOperation, project_name: str, caption: s
     dialogues = generate_dialogues_from_pdf(pdf_bytes, speaker1_id, speaker2_id)
 
     # Insert project first
-    db.create_project(project_name, caption, pdf_url, speaker1_id=speaker1_id, speaker2_id=speaker2_id)
+    db.create_project(project_name, caption, pdf_url, speaker1_id=speaker1_id, speaker2_id=speaker2_id, user_id=user_id)
     # Retrieve project id
     projects = db.get_projects()
     project_id = None
