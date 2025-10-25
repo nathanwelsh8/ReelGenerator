@@ -1,9 +1,9 @@
 {
   "name": "StewieReelsGenerator",
   "dockerComposeFile": [
-    "./docker-compose.yml"
+    "../docker-compose.yml"
   ],
-  "service": "app",
+  "service": "api",
   "workspaceFolder": "/app",
   "mounts": [
     "source=${localWorkspaceFolder},target=/app,type=bind"

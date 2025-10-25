@@ -1,7 +1,7 @@
 class JOB_TYPES:
-    PROJECT_DIALOGUE = "project_dialogue"
-    CHARACTER_FOLLOW = "character_follow"
+    HIGGS_DIALOGUE = "higgs_dialogue"  # Dialogue audio generation via Higgs
+    HIGGS_FOLLOW = "higgs_follow"      # Character follow-line generation via Higgs
 
     @classmethod
     def get_jobs(cls):
-        return [cls.PROJECT_DIALOGUE, cls.CHARACTER_FOLLOW]
+        return [cls.HIGGS_DIALOGUE, cls.HIGGS_FOLLOW]

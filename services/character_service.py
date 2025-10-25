@@ -3,7 +3,10 @@ from db_handler import DBOperation
 import os
 import shutil
 from services.messaging.factory import get_publisher
-from services.messaging.messages import TOPIC_AUDIO_JOBS, AudioJob
+from services.messaging.messages import TOPIC_HIGGS_AUDIO_JOBS, AudioJob
+from services.config.job_types import JOB_TYPES
+from services.audio_job_service import AudioJobService
+from utils import AudioJobStatus
 
 class CharacterService:
     """Service layer to interact with character data and provide convenience utilities."""
@@ -147,15 +150,24 @@ class CharacterService:
         if (not overwrite) and ch.get('follow_line_audio') and os.path.isfile(ch['follow_line_audio']):
             return ch['follow_line_audio']
 
-        # Publish job for async generation
+        # Create audio_jobs entry and publish Higgs follow job
+        audio_job_service = AudioJobService(self.db)
+        payload = {"character_id": character_id, "follow": True}
+        audio_job_row = audio_job_service.create_job(
+            text=sentence,
+            voice=None,
+            user_id=None,
+            payload=payload,
+        )
         publisher = get_publisher()
         job: AudioJob = {
-            "job_type": "character_follow",
+            "job_type": JOB_TYPES.HIGGS_FOLLOW,
             "sentence": sentence,
             "character": name,
             "character_id": character_id,
+            "audio_job_id": audio_job_row["id"],
         }
-        publisher.publish(TOPIC_AUDIO_JOBS, job, key=f"follow-{character_id}")
+        publisher.publish(TOPIC_HIGGS_AUDIO_JOBS, job, key=f"follow-{audio_job_row['id']}")
         # Optimistically update DB with the intended target path so UI can reference it later
         self.db.update_character(character_id, follow_line_audio=final_path)
         return final_path

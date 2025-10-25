@@ -1,0 +1,41 @@
+# --- Python caches ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# --- Local databases / state ---
+*.db
+*.sqlite3
+stewie_database.db
+
+# --- Logs / temp ---
+*.log
+runtime_logs/
+debug/
+*.tmp
+*.swp
+
+# --- Large media assets not required to install dependencies ---
+audio_assests/
+image_assests/
+video_assets/
+downloaded_images/
+
+# --- Frontend / node ---
+ui/node_modules/
+node_modules/
+*.tsbuildinfo
+
+# --- Environment / secrets (mounted at runtime) ---
+.env.local
+
+# --- Editor / VCS ---
+.vscode/
+.git/
+.DS_Store
+
+# --- Build artifacts ---
+dist/
+build/
+cache/

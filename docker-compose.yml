@@ -1,0 +1,108 @@
+name: stewie_prod
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: stewie_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/%2F
+      MESSAGING_BACKEND: rabbitmq
+      DB_PATH: /data/stewie_database.db
+      LOG_LEVEL: INFO
+    volumes:
+      - stewie_audio:/app/audio_assests
+      - stewie_video:/app/video_assets
+      - stewie_images:/app/image_assests
+    ports:
+      - "8000:8000"
+    entrypoint: ["sh", "-c", "/usr/local/bin/patch_imagemagick_policy.sh || true; uvicorn asgi:app --host 0.0.0.0 --port 8000"]
+    restart: unless-stopped
+
+
+  video_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/%2F
+      MESSAGING_BACKEND: rabbitmq
+      INTERNAL_API_BASE_URL: http://api:8000/internal
+      INTERNAL_API_TIMEOUT: 15
+    volumes:
+      - stewie_audio:/app/audio_assests
+      - stewie_video:/app/video_assets
+      - stewie_images:/app/image_assests
+    entrypoint: ["sh", "-c", "/usr/local/bin/patch_imagemagick_policy.sh || true; python workers/video_worker.py"]
+    restart: unless-stopped
+
+  higgs_infer:
+    build:
+      context: .
+      dockerfile: Dockerfile.higgs
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/%2F
+      MESSAGING_BACKEND: rabbitmq
+      INTERNAL_API_BASE_URL: http://api:8000/internal
+      INTERNAL_API_TIMEOUT: 20
+      HIGGS_PLACEHOLDER: "1"
+      # To enable Higgs Audio v2 clone mode via Boson provider, uncomment:
+      VOICE_MODE: clone
+      HIGGS_MODEL_PROVIDER: boson
+      HIGGS_BOSON_MODEL: bosonai/higgs-audio-v2-generation-3B-base
+      HIGGS_BOSON_TOKENIZER: bosonai/higgs-audio-v2-tokenizer
+      # Persist Hugging Face cache to avoid re-downloading weights
+      HF_HOME: /root/.cache/huggingface
+      HUGGINGFACE_HUB_CACHE: /root/.cache/huggingface/hub
+      TRANSFORMERS_CACHE: /root/.cache/huggingface/transformers
+    volumes:
+      - stewie_audio:/app/audio_assests
+      - stewie_video:/app/video_assets
+      - hf_cache:/root/.cache/huggingface
+      - higgs_cache:/root/.cache/higgs
+      - ./voice_refs:/app/voice_refs
+    entrypoint: ["sh", "-c", "python3 bootstrap_higgs.py || true; python3 workers/higgs_infer_worker.py"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
+          memory: 4G  # Guarantee at least 4GB
+    # Allow memory swapping for graceful throttling instead of OOM kills
+    mem_swappiness: 60  # Default swap behavior (0-100, higher = more swapping)
+    restart: unless-stopped
+
+volumes:
+  stewie_audio: {}
+  stewie_video: {}
+  stewie_images: {}
+  hf_cache: {}
+  higgs_cache: {}
+
+networks:
+  default: {}

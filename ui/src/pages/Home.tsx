@@ -125,8 +125,15 @@ const ProjectCard = ({ project, refresh }: { project: ProjectWithPct; refresh: (
   };
   const handleReconcile = async () => {
     const nid = `reconcile-${id}`;
-    notifications.show({ id:nid, loading:true, title:'Reconciling', message:'Checking project progress...', autoClose:false, withCloseButton:false });
-    try { await reconcileProjectService(id); notifications.update({ id:nid, loading:false, title:'Reconciled', message:'Project state refreshed', color:'green', autoClose:2000 }); refresh(); }
+    notifications.show({ id:nid, loading:true, title:'Reconciling', message:'Reconciling and queueing audio jobs…', autoClose:false, withCloseButton:false });
+    try {
+      // 1) Reconcile statuses (COMPLETED if audio exists; reset stuck INPROGRESS -> NEW)
+      await reconcileProjectService(id);
+      // 2) Enqueue NEW/FAILED dialogues to Higgs audio queue
+      await enqueueProjectProcessingService(id);
+      notifications.update({ id:nid, loading:false, title:'Reconciled + Queued', message:'Audio jobs enqueued', color:'green', autoClose:2000 });
+      refresh();
+    }
     catch (e) { notifications.update({ id:nid, loading:false, title:'Reconcile failed', message: e instanceof Error ? e.message : 'Error', color:'red', autoClose:4000 }); }
   };
   const retryRender = async () => {

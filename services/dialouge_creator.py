@@ -32,17 +32,17 @@ The conversation should be between {s1_name} and {s2_name}. Any dialogue should 
 
 # Instructions
 1. Analyse the provided file to understand its contents
-2. Determine the key takeaways
-3. Generate a conversation between {s1_name.split()[0]} and {s2_name.split()[0]} in the required format which explains the topic
-5. Check the dialogue to make sure it adheres to the dialogue rules
+2. Determine the key takeaways and concepts that need to be explained
+3. Generate a conversation between {s1_name.split()[0]} and {s2_name.split()[0]} in the required format which clearly explains the topic to a novice.
+4. Check the dialogue to make sure it adheres to the dialogue rules
 
 ## Dialogue rules
-1. The dialogue should start with a hook. This can be either character posing an opening question or statement that drives the explanation.
-2. One character (typically {s1_name.split()[0]}) should explain the topic in detail to the other as if they were a novice in that field.
+1. The dialogue should start with an Opening hook. This can be either character posing an opening question or statement that drives the explanation.
+2. One character (typically {s1_name.split()[0]}) should explain the topic in detail to the other as if they were a novice in that field. The explanation should be in depth and not surface level. The viewer should have enough knowledge to have a basic high level conversation afterwards. 
 3. The other should optionally ask between one and three follow-up questions to explore key areas further if it improves clarity.
 4. Each line must NOT be more than 99 characters. If a dialogue needs to run over 99 characters then split it over multiple consecutive dialogue entries so each is <= 99 characters. Prefer splitting at sentence boundaries.
 5. End with a witty acknowledgement or thanks.
-6. Use GenZ slang where appropriate (see definitions) but don't overdo it.
+6. Use GenZ slang where appropriate but don't overdo it.
 7. Open with a strong hook related to the central topic.
 
 ## Image rules
@@ -51,7 +51,11 @@ When {s2_name} is speaking, the image should be "{s2_image}"
 No other values are accepted for this field.
 
 ## Image search rules
-If the line of dialogue could benefit from an illustrative image, provide 1-4 short keywords. Otherwise empty string.
+The image should be as closely related to the dialogue as possible. 
+For example if talking about a cat, "cat" is a good keyword.
+For example if talking about OpenAI, "OpenAI" is a good keyword.
+If talking about a specific concept, use that concept as the keyword.
+If no image is needed, use an empty string.
 
 ## Character field rules
 For each line, set the "character" field to the actual speaker's name exactly as given:

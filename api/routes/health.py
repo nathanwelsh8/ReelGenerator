@@ -5,7 +5,7 @@ try:
     import pika  # type: ignore
 except Exception:  # pragma: no cover
     pika = None  # fallback if not installed
-from services.messaging.messages import TOPIC_AUDIO_JOBS
+from services.messaging.messages import TOPIC_HIGGS_AUDIO_JOBS
 from settings import get_settings
 from urllib.parse import urlparse, unquote
 
@@ -40,7 +40,7 @@ def health() -> Dict[str, Any]:
                 ch = conn.channel()
                 # Passive declare to check existence without creating; if it doesn't exist, this raises
                 try:
-                    q = ch.queue_declare(queue=TOPIC_AUDIO_JOBS, passive=True)
+                    q = ch.queue_declare(queue=TOPIC_HIGGS_AUDIO_JOBS, passive=True)
                     queue_ok = True
                     message_count = getattr(q.method, 'message_count', None)
                     consumer_count = getattr(q.method, 'consumer_count', None)
@@ -65,7 +65,7 @@ def health() -> Dict[str, Any]:
         "queue": {
             "backend": backend,
             "available": queue_ok,
-            "topic": TOPIC_AUDIO_JOBS,
+            "topic": TOPIC_HIGGS_AUDIO_JOBS,
             "message_count": locals().get("message_count"),
             "consumer_count": locals().get("consumer_count"),
             "reason": reason,

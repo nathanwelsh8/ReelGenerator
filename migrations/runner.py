@@ -13,8 +13,15 @@ They should be idempotent.
 from importlib import import_module
 from pathlib import Path
 from typing import List
-from db_handler import DBOperation
+import sys, os
 from logging import getLogger
+
+# Ensure project root is on sys.path when executed directly (e.g., python migrations/runner.py)
+PROJECT_ROOT = os.path.abspath(os.path.join(Path(__file__).parent, '..'))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from db_handler import DBOperation
 
 logger = getLogger("migrations")
 
@@ -41,7 +48,8 @@ def run_all_migrations(db_path: str = 'stewie_database.db'):
         logger.info(f"Running migration: {mod_name}")
         if hasattr(mod, 'run'):
             mod.run(db)
+    print('Migrations completed.')
 
 if __name__ == '__main__':
     run_all_migrations()
-    print('Migrations completed.')
+    

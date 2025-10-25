@@ -1,16 +1,20 @@
-from typing import TypedDict, NotRequired
+from typing import TypedDict
 
 
-class AudioJob(TypedDict):
+class _AudioJobOptional(TypedDict, total=False):
+    project_id: int
+    dialogue_id: int
+    character_id: int
+    audio_job_id: int  # reference to internal audio_jobs row (Higgs pipeline)
+
+
+class AudioJob(_AudioJobOptional):
     job_type: str  # see services.config.job_types.JOB_TYPES
-    project_id: NotRequired[int]
-    dialogue_id: NotRequired[int]
     sentence: str
     character: str
-    character_id: NotRequired[int]
 
 
-TOPIC_AUDIO_JOBS = "audio.jobs"
+TOPIC_HIGGS_AUDIO_JOBS = "higgs.audio.jobs"  # unified Higgs inference queue
 
 
 class VideoJob(TypedDict):

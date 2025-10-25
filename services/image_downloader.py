@@ -1,5 +1,5 @@
 import os
-import logging
+from loguru import logger
 from google_images_search import GoogleImagesSearch
 from settings import get_settings
 
@@ -11,37 +11,27 @@ class ImageDownloader:
 
         # Create required folders
         os.makedirs(self.download_folder, exist_ok=True)
-        self._setup_logging()
+        # Logging is configured globally via services.config.logging_config
+        # Use stdlib logger name "ImageDownloader" via bind for filters
+        self._logger = logger.bind(stdlib_logger_name="ImageDownloader")
 
     def _setup_logging(self):
-        os.makedirs("runtime_logs", exist_ok=True)
-        log_path = os.path.join("runtime_logs", "image_downloader.log")
-
-        self.logger = logging.getLogger("ImageDownloader")
-        self.logger.setLevel(logging.DEBUG)
-
-        if not self.logger.handlers:
-            file_handler = logging.FileHandler(log_path)
-            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-            file_handler.setFormatter(formatter)
-            self.logger.addHandler(file_handler)
-
-        self.logger.info("Logger initialized.")
+        # Deprecated: kept for backward compatibility; now a no-op.
+        logger.debug("ImageDownloader logger uses global Loguru configuration.")
 
     def search_images(self, term):
-
         if term == "":
-            self.logger.warning("Search term is empty. Returning empty list.")
+            self._logger.warning("Search term is empty. Returning empty list.")
             return []
 
-        self.logger.info(f"Starting search for: {term}")
+        self._logger.info(f"Starting search for: {term}")
         downloaded_image_paths = []
 
         # Use API keys from settings.py
         api_key = self.settings.GOOGLE_API_KEY
         cx = self.settings.GOOGLE_SEARCH_ENGINE_CX
         if not api_key or not cx:
-            self.logger.critical("Google Custom Search API key or CX not found in settings.py")
+            self._logger.critical("Google Custom Search API key or CX not found in settings.py")
             return []
 
         gis = GoogleImagesSearch(api_key, cx)
@@ -58,11 +48,11 @@ class ImageDownloader:
                 if hasattr(image, 'path') and image.path:
                     downloaded_image_paths.append(image.path)
                 else:
-                    self.logger.warning(f"No local path for image {idx + 1}")
+                    self._logger.warning(f"No local path for image {idx + 1}")
         except Exception as e:
-            self.logger.critical(f"Google image search failed: {e}")
-
-        self.logger.info(f"Downloaded {len(downloaded_image_paths)} images successfully.")
+            self._logger.critical(f"Google image search failed: {e}")
+        
+        self._logger.info(f"Downloaded {len(downloaded_image_paths)} images successfully.")
         return downloaded_image_paths
 
 

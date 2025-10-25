@@ -7,10 +7,20 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 class DBOperation:
-    def __init__(self, db_name="stewie_database.db"):
-        """Initialize DB and run idempotent migrations."""
-        # Keep init light; migrations handled by migrations.runner
-        self.db_name = db_name
+    def __init__(self, db_name: str | None = None):
+        """Lightweight initializer. Schema handled via migrations.
+
+        Prefers explicit db_name argument; falls back to settings.DB_PATH so
+        containerized services (API & workers) can share a mounted volume.
+        """
+        if db_name is not None:
+            self.db_name = db_name
+        else:
+            try:
+                from settings import get_settings  # local import to avoid cycles
+                self.db_name = get_settings().DB_PATH or "stewie_database.db"
+            except Exception:
+                self.db_name = "stewie_database.db"
 
     def connect(self):
         conn = sqlite3.connect(self.db_name, timeout=30, check_same_thread=False)
@@ -304,14 +314,20 @@ class DBOperation:
             except Exception:
                 pass
     def get_projects(self, user_id: int | None = None):
-        """Return list of project tuples (legacy shape) optionally filtered by user_id."""
+        """Return list of project tuples (legacy shape) optionally filtered by user_id.
+
+        Diagnostic logging included to aid debugging environment/db path issues.
+        """
         try:
+            logger.info(f"get_projects(): db_file={self.db_name} user_filter={user_id}")
             conn = self.connect(); cursor = conn.cursor()
             if user_id is not None:
                 cursor.execute("SELECT id, title, caption, pdf_url, status, video_path FROM projects WHERE user_id = ? ORDER BY id ASC;", (user_id,))
             else:
                 cursor.execute("SELECT id, title, caption, pdf_url, status, video_path FROM projects ORDER BY id ASC;")
-            return cursor.fetchall()
+            rows = cursor.fetchall()
+            logger.info(f"get_projects(): returned {len(rows)} rows")
+            return rows
         except sqlite3.Error as e:
             logger.error(f"SQLite error during get_projects: {e}")
             return []
@@ -600,46 +616,98 @@ class DBOperation:
     def reconcile_dialogue_statuses(self, project_id=None):
         """
         Fix inconsistent statuses:
+        - Sync audio paths from completed audio_jobs to dialogues.
         - Mark any row with a non-empty audio path as COMPLETED.
-        - Reset INPROGRESS rows that have no audio path back to NEW so they can be retried.
+        - Reset INPROGRESS rows that have no audio path AND no pending/completed job back to NEW.
         Returns a dict with counts of updates performed.
         """
         try:
 
-            completed_reset_dict= {"completed_fixed": 0, "status_reset": 0}
+            completed_reset_dict= {"completed_fixed": 0, "status_reset": 0, "audio_synced": 0}
             conn = self.connect()
             cursor = conn.cursor()
 
             params = []
             where_project = ""
             if project_id is not None:
-                where_project = " AND project_id = ?"
+                where_project = " AND d.project_id = ?"
                 params.append(project_id)
+
+            # 0) Sync audio paths from completed audio_jobs where dialogue has no audio
+            # Use json_extract to find jobs by dialogue_id in request_payload
+            sql_sync_audio = """
+                UPDATE dialouge_stage 
+                SET audio = (
+                    SELECT aj.output_path 
+                    FROM audio_jobs aj
+                    WHERE json_extract(aj.request_payload, '$.dialogue_id') = dialouge_stage.id 
+                    AND aj.status = 'COMPLETED' 
+                    AND aj.output_path IS NOT NULL
+                    AND TRIM(aj.output_path) <> ''
+                    ORDER BY aj.id DESC 
+                    LIMIT 1
+                )
+                WHERE (dialouge_stage.audio IS NULL OR TRIM(dialouge_stage.audio) = '')
+                AND EXISTS (
+                    SELECT 1 FROM audio_jobs aj2
+                    WHERE json_extract(aj2.request_payload, '$.dialogue_id') = dialouge_stage.id 
+                    AND aj2.status = 'COMPLETED'
+                    AND aj2.output_path IS NOT NULL
+                    AND TRIM(aj2.output_path) <> ''
+                )
+            """ + (where_project.replace("d.", "dialouge_stage.") if where_project else "") + ";"
+            
+            try:
+                cursor.execute(sql_sync_audio, params if params else [])
+                audio_synced = cursor.rowcount
+            except sqlite3.Error as e:
+                # Fallback: try without json_extract (older SQLite versions)
+                logger.warning(f"json_extract not supported, skipping audio sync: {e}")
+                audio_synced = 0
 
             # 1) Complete rows that have audio
             sql_complete = (
                 "UPDATE dialouge_stage SET status = ? "
                 "WHERE status != ? "
-                "AND audio IS NOT NULL AND TRIM(audio) <> ''" + where_project + ";"
+                "AND audio IS NOT NULL AND TRIM(audio) <> ''" + where_project.replace("d.", "dialouge_stage.") + ";"
             )
             cursor.execute(sql_complete, [DialougeStatus.COMPLETED, DialougeStatus.COMPLETED] + params)
             completed_fixed = cursor.rowcount
 
-            # 2) Requeue stuck INPROGRESS without audio
-            sql_requeue = (
-                "UPDATE dialouge_stage SET status = ? "
-                "WHERE status = ? "
-                "AND (audio IS NULL OR TRIM(audio) = '')" + where_project + ";"
-            )
-            cursor.execute(sql_requeue, [DialougeStatus.NEW, DialougeStatus.INPROGRESS] + params)
-            requeued = cursor.rowcount
+            # 2) Requeue stuck INPROGRESS without audio ONLY if no active/completed job exists
+            # Don't reset if a job is QUEUED, IN_PROGRESS, or COMPLETED
+            sql_requeue = """
+                UPDATE dialouge_stage 
+                SET status = ? 
+                WHERE status = ? 
+                AND (audio IS NULL OR TRIM(audio) = '')
+                AND NOT EXISTS (
+                    SELECT 1 FROM audio_jobs aj
+                    WHERE json_extract(aj.request_payload, '$.dialogue_id') = dialouge_stage.id 
+                    AND aj.status IN ('QUEUED', 'IN_PROGRESS', 'COMPLETED')
+                )
+            """ + (where_project.replace("d.", "dialouge_stage.") if where_project else "") + ";"
+            
+            try:
+                cursor.execute(sql_requeue, [DialougeStatus.NEW, DialougeStatus.INPROGRESS] + params)
+                requeued = cursor.rowcount
+            except sqlite3.Error as e:
+                # Fallback: use old behavior if json_extract fails
+                logger.warning(f"json_extract not supported for requeue check, using simple reset: {e}")
+                sql_requeue_simple = (
+                    "UPDATE dialouge_stage SET status = ? "
+                    "WHERE status = ? "
+                    "AND (audio IS NULL OR TRIM(audio) = '')" + where_project.replace("d.", "dialouge_stage.") + ";"
+                )
+                cursor.execute(sql_requeue_simple, [DialougeStatus.NEW, DialougeStatus.INPROGRESS] + params)
+                requeued = cursor.rowcount
 
             conn.commit()
-            completed_reset_dict = {"completed_fixed": completed_fixed, "status_reset": requeued}
+            completed_reset_dict = {"completed_fixed": completed_fixed, "status_reset": requeued, "audio_synced": audio_synced}
             return completed_reset_dict
         except sqlite3.Error as e:
             logger.error(f"SQLite error during reconciliation: {e}")
-            return {"completed_fixed": 0, "status_reset": 0}
+            return {"completed_fixed": 0, "status_reset": 0, "audio_synced": 0}
         finally:
             try:
                 conn.close()

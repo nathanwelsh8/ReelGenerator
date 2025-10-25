@@ -1,5 +1,5 @@
 # Use the official Python base image
-FROM python:3.12
+FROM python:3.11
 
 # Set the working directory in the container
 WORKDIR /app
@@ -44,8 +44,12 @@ RUN apt-get update && apt-get install -y cron && rm -rf /var/lib/apt/lists/*
 # Patch ImageMagick policy at build time for development
 RUN /usr/local/bin/patch_imagemagick_policy.sh
 
+
 # Install the required Python packages
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy all app source code (including workers/) into the image
+COPY . /app
 
 # Prepare log file used by cron jobs
 RUN touch /var/log/cron.log

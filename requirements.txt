@@ -16,3 +16,10 @@ uvicorn
 pika
 python-jose[cryptography]
 google-auth
+# Coqui TTS: Latest available matching versions stop at 0.22.0 for our index.
+# We downgraded base image to Python 3.11 to keep compatibility.
+TTS==0.22.0
+soundfile
+rapidfuzz
+loguru
+boson-multimodal

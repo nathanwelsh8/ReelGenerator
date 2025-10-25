@@ -9,6 +9,13 @@ class DialougeStatus:
     UPLOADED = 'UPLOADED'
 
 
+class AudioJobStatus:
+    QUEUED = 'QUEUED'
+    IN_PROGRESS = 'IN_PROGRESS'
+    COMPLETED = 'COMPLETED'
+    FAILED = 'FAILED'
+
+
 
 class ProxyHttpConstants:
 

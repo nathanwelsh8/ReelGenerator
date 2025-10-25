@@ -15,9 +15,6 @@ cat > "$CRON_FILE" <<'EOF'
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# Run main.py hourly at minute 0
-0 * * * * root echo "[CRON] $(date '+%Y-%m-%d %H:%M:%S') Running main.py" >> /var/log/cron.log; cd /app && /usr/local/bin/python3 /app/main.py >> /var/log/cron.log 2>&1
-
 # Run upload_to_instagram.py every 2 hours
 0 */2 * * * root echo "[CRON] $(date '+%Y-%m-%d %H:%M:%S') Running upload_to_instagram.py" >> /var/log/cron.log; cd /app && /usr/local/bin/python3 /app/upload_to_instagram.py >> /var/log/cron.log 2>&1
 EOF

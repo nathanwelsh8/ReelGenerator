@@ -2,6 +2,8 @@ import os
 import warnings
 import random
 import logging
+import subprocess
+import tempfile
 warnings.filterwarnings("ignore")
 os.environ["IMAGEMAGICK_BINARY"] = "/usr/bin/convert"
 from moviepy.editor import (
@@ -12,10 +14,9 @@ from moviepy.editor import (
     ImageClip,
     TextClip,
 )
-import requests
 import os
 from utils import DialougeStatus
-
+from moviepy.editor import AudioFileClip
 # Monkey-patch PIL.Image.ANTIALIAS for Pillow>=10 compatibility
 try:
     from PIL import Image as PILImage
@@ -23,10 +24,6 @@ try:
         PILImage.ANTIALIAS = PILImage.Resampling.LANCZOS
 except Exception:
     pass
-
-
-from moviepy.config_defaults import IMAGEMAGICK_BINARY
-#IMAGEMAGICK_BINARY = r"/usr/bin/convert"   chnage this path to  your  imagemagick file path
 
 class DynamicVideoEditor:
     def __init__(self, video_path, output_path, dialogue_data=None, db_handler=None):
@@ -36,6 +33,7 @@ class DynamicVideoEditor:
         self.image_clips = []
         self.subtitle_clips = []
         self.current_start = 0
+        self.speed_multiplier = 1.2  # Audio speed multiplier
 
 
         # Always fetch dialogue data from the database if db_handler is provided
@@ -59,13 +57,14 @@ class DynamicVideoEditor:
             raise ValueError(f"The following dialogue items do not have COMPLETE audio assets: {[item.get('id', item) for item in incomplete]}")
 
         # Calculate total audio duration
-        from moviepy.editor import AudioFileClip, concatenate_audioclips
+        
         total_audio_duration = 0
         for item in self.dialogue_data:
             audio_path = item.get('audio')
             if audio_path and os.path.exists(audio_path):
                 try:
-                    total_audio_duration += AudioFileClip(audio_path).duration
+                    # Divide by speed multiplier since audio will be sped up
+                    total_audio_duration += AudioFileClip(audio_path).duration / self.speed_multiplier
                 except Exception as e:
                     print(f"Warning: Could not read duration for {audio_path}: {e}")
         # Add 15 seconds buffer
@@ -148,16 +147,69 @@ class DynamicVideoEditor:
                 .set_start(current_time)
                 .set_duration(word_duration)
                 .set_position(("center", "center"))
-                .fadein(0.1)
-                .fadeout(0.1)
+                .fadein(0.05)
+                .fadeout(0.05)
             )
             word_clips.append(clip)
             current_time += word_duration
         return word_clips
 
-    def edit(self):
-        #title_clip = self.create_title_clip(self.title, duration=self.video.duration)
+    def _speed_up_audio_preserve_pitch(self, audio_clip, audio_path, speed_multiplier):
+        """Speed up audio using FFmpeg's atempo filter to preserve pitch.
+        
+        Args:
+            audio_clip: The original AudioFileClip (used to get original duration)
+            audio_path: Path to the audio file
+            speed_multiplier: Speed factor (e.g., 1.25 for 25% faster)
+            
+        Returns:
+            AudioFileClip of the speed-adjusted audio
+        """
+        # Create a temporary file for the sped-up audio
+        temp_fd, temp_path = tempfile.mkstemp(suffix='.mp3')
+        os.close(temp_fd)
+        
+        try:
+            # FFmpeg atempo filter preserves pitch while changing speed
+            # atempo has limits: 0.5 to 2.0, so for values outside this range, chain multiple filters
+            atempo_value = speed_multiplier
+            
+            # Build the atempo filter chain if needed
+            if 0.5 <= atempo_value <= 2.0:
+                filter_str = f'atempo={atempo_value}'
+            else:
+                # Chain multiple atempo filters for values outside 0.5-2.0 range
+                filters = []
+                remaining = atempo_value
+                while remaining > 2.0:
+                    filters.append('atempo=2.0')
+                    remaining /= 2.0
+                while remaining < 0.5:
+                    filters.append('atempo=0.5')
+                    remaining /= 0.5
+                if remaining != 1.0:
+                    filters.append(f'atempo={remaining}')
+                filter_str = ','.join(filters)
+            
+            # Run FFmpeg with atempo filter
+            subprocess.run([
+                'ffmpeg', '-y', '-i', audio_path,
+                '-filter:a', filter_str,
+                '-codec:a', 'libmp3lame', '-qscale:a', '4',
+                temp_path
+            ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            
+            # Load the sped-up audio
+            return AudioFileClip(temp_path)
+        except Exception as e:
+            logging.error(f"Failed to speed up audio with pitch preservation: {e}")
+            # Fallback to original audio if speed adjustment fails
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            return audio_clip
 
+    def edit(self):
+       
         if not self.dialogue_data:
             raise ValueError("No dialogue data provided to the video editor. Cannot generate video without dialogue.")
 
@@ -175,7 +227,13 @@ class DynamicVideoEditor:
                 raise ValueError(f"Dialogue id {item.get('id')} has no audio path.")
             if not os.path.exists(audio_path):
                 raise FileNotFoundError(f"Audio file for dialogue id {item.get('id')} not found at '{audio_path}'.")
-            audio = AudioFileClip(audio_path).set_start(self.current_start)
+            
+            
+            audio = AudioFileClip(audio_path)
+            # Speed up audio by the configured speed multiplier using FFmpeg atempo (preserves pitch)
+            if self.speed_multiplier != 1.0:
+                audio = self._speed_up_audio_preserve_pitch(audio, audio_path, self.speed_multiplier)
+            audio = audio.set_start(self.current_start)
             self.audio_clips.append(audio)
 
             # Position character image
@@ -219,27 +277,9 @@ class DynamicVideoEditor:
 
             self.current_start += audio.duration + 0.5
 
-        # end_clip = self.create_end_title_clip("Like, Share, thanks for watching.")
-        # self.image_clips.append(end_clip)
-
         final_audio = CompositeAudioClip(self.audio_clips)
         final_video = CompositeVideoClip(
             [self.video] + self.image_clips + self.subtitle_clips
         ).set_audio(final_audio)
 
         final_video.write_videofile(self.output_path, codec="libx264", audio_codec="aac", fps=self.video.fps)
-
-
-# === Usage Example ===
-# if __name__ == "__main__":
-#     from db_handler import DBOperation
-#     db=DBOperation()
-#     dialogue_data=db.get_ready_assets()
-#     print(dialogue_data)
-    
-#     editor = DynamicVideoEditor(
-#         video_path=r"/home/ubuntu/mainrepo/stewie_v1/video_assests/video_without_audio.webm",
-#         output_path="output_final_video.mp4",
-#         dialogue_data=dialogue_data
-#     )
-#     editor.edit()

@@ -1,0 +1,44 @@
+FROM nvidia/cuda:12.1.1-runtime-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HIGGS_DEVICE="cuda:0"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-venv python3-pip git ffmpeg wget ca-certificates libsndfile1 && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install PyTorch first (example pinned versions; adjust to real model requirements)
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install --upgrade "torch==2.2.2+cu118" "torchvision==0.17.2+cu118" "torchaudio==2.2.2+cu118" -f https://download.pytorch.org/whl/torch_stable.html
+
+# Common audio / ML helper libs (adjust as real model firmed up)
+# Pin NumPy to 1.x to avoid compatibility issues with torch and other dependencies
+RUN python3 -m pip install "numpy<2" soundfile librosa==0.10.2.post1
+
+# Install Boson AI Higgs Audio (follow official README: clone + install requirements + editable install)
+RUN git clone https://github.com/boson-ai/higgs-audio.git /tmp/higgs-audio && \
+    python3 -m pip install -r /tmp/higgs-audio/requirements.txt && \
+    python3 -m pip install -e /tmp/higgs-audio
+
+# Copy minimal worker requirements (excludes API/UI dependencies)
+COPY requirements.higgs.txt ./
+RUN python3 -m pip install -r requirements.higgs.txt
+
+# Copy project source (can be trimmed later to only shared modules + worker)
+COPY . /app
+
+# Placeholder: install Higgs model package here (adjust once repo/model specifics are known)
+# RUN git clone https://github.com/your-org/higgs-audio.git /tmp/higgs && \
+#     cd /tmp/higgs && python3 -m pip install -r requirements.txt && python3 -m pip install -e .
+
+# Create a cache dir for model weights
+RUN mkdir -p /root/.cache/higgs
+
+ENV HIGGS_ENABLE_GPU_METRICS=true \
+    HIGGS_USE_HALF=true
+
+ENTRYPOINT ["python3", "workers/higgs_infer_worker.py"]
